@@ -1,0 +1,25 @@
+{
+  "img_id": 331352,
+  "image_path": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\data\\val2017\\000000331352.jpg",
+  "prompt": "What is the main object in the image? Answer with one word only.",
+  "run_all_layers": true,
+  "layers_to_run": null,
+  "vis_dir": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\intermediate_tam\\331352\\vis_results",
+  "grids_dir": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\intermediate_tam\\331352\\token_grids",
+  "word_views_dir": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\intermediate_tam\\331352\\word_views",
+  "word_groups": [
+    {
+      "group_name": "group_00_toilet",
+      "label": "toilet",
+      "source_tokens": [
+        "to",
+        "ilet"
+      ],
+      "step_indices": [
+        0,
+        1
+      ],
+      "grid_path": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\intermediate_tam\\331352\\word_views\\000000331352\\group_00_toilet\\grid_layers.jpg"
+    }
+  ]
+}

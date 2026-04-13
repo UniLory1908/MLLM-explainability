@@ -1,0 +1,14 @@
+numpy
+pandas
+matplotlib
+pillow
+pycocotools
+torch
+torchvision
+transformers==4.52.1
+accelerate
+scipy
+opencv-python
+pymupdf
+nltk
+rouge

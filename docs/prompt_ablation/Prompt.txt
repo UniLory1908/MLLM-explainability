@@ -1,0 +1,264 @@
+You are conducting a high-recall but structured literature reconnaissance for a research project on stress-testing explainability in Multimodal Large Language Models (MLLMs).
+
+PROJECT CONTEXT
+The broader project studies explainability in vision-language / multimodal LLMs, with emphasis on:
+- understanding what the model looks at,
+- when it uses visual information,
+- how it generates each token,
+- stability of explanations under prompt changes,
+- semantic coherence of token-level activations,
+- diagnostic analysis of errors, weaknesses, and spurious dependencies.
+
+Our subtopic is PROMPT ABLATION:
+We want to study how prompt interventions affect:
+1) the overall quality of MLLM outputs, and
+2) the quality, stability, faithfulness/plausibility, grounding, attribution, or interpretability of explanations.
+
+The main technical anchor is Token Activation Map (TAM)-style token-level visual explanation for MLLMs, especially around prompt/context effects on grounding. Priority models/settings include Qwen2-VL, LLaVA-1.5, and InternVL2.5, but relevant broader MLLM/VLM work should also be included.
+
+SEARCH GOAL
+Find and organize the state of the art on how prompt changes, prompt design, prompt optimization, prompt sensitivity, and prompt robustness affect:
+- MLLM/VLM task performance,
+- visual grounding,
+- saliency / attribution / activation-map quality,
+- explainability / interpretability,
+- reasoning traces when relevant,
+- failure modes, brittleness, bias, and instability.
+
+We want BOTH:
+A) papers directly about prompting in MLLMs/VLMs, and
+B) papers on explainability / grounding / attribution in MLLMs where prompt variation, context variation, instruction wording, or prompt structure matter or could matter.
+
+INCLUDE
+Search broadly across:
+- peer-reviewed papers,
+- arXiv preprints,
+- survey papers,
+- literature reviews,
+- benchmark papers,
+- datasets,
+- code repositories,
+- supplementary materials,
+- workshop papers,
+- technical reports.
+
+You may also include non-academic but useful sources (blogs, engineering reports, documentation, posts), BUT they must be clearly categorized as non-peer-reviewed and never mixed with scientific evidence.
+
+PRIORITIZATION
+- Absolute priority to recent work.
+- However, include older foundational papers if they are genuinely important for methodology, taxonomy, or conceptual grounding.
+- Keep the main focus on MLLMs / VLMs / LVLMs.
+- Include LLM-only, CLIP, ViT, or general multimodal interpretability papers only when they provide methods, taxonomies, metrics, or concepts that are useful for our topic.
+
+DO NOT OVER-NARROW
+Do NOT restrict the search only to papers explicitly using the phrase “prompt ablation”.
+Also include related formulations such as:
+- prompt sensitivity
+- prompt robustness
+- prompt brittleness
+- prompt variance
+- prompt optimization
+- prompt engineering
+- instruction design
+- prompt reformulation
+- prompt perturbation
+- prompt intervention
+- prompt decomposition
+- chain-of-thought prompting
+- role prompting
+- self-refinement / self-critique prompts
+- structured output prompting
+- multimodal prompting
+- visual instruction prompting
+- context manipulation
+- wording effects
+- ordering effects
+- specificity vs vagueness
+- prompt length effects
+- token-level prompt changes
+- system / user prompt effects when relevant
+
+EXPLAINABILITY / INTERPRETABILITY ANGLES TO COVER
+Search across all relevant paradigms, including:
+- visual grounding
+- token-level grounding
+- activation maps
+- saliency maps
+- Grad-CAM / CAM variants
+- attention analysis / attention rollout
+- attribution
+- causal analysis / causal intervention / counterfactual explanation
+- probing
+- hidden-state analysis
+- relevance propagation
+- multimodal explanation
+- explanation stability / robustness
+- faithfulness vs plausibility
+- diagnostic interpretability
+- bias / failure case analysis
+
+TASKS / SETTINGS TO INCLUDE
+Relevant settings include but are not limited to:
+- image captioning
+- VQA
+- visual reasoning
+- attribute recognition
+- object grounding / localization
+- multi-turn multimodal dialogue
+- multi-image prompting
+- video-language settings
+- instruction-following with images
+
+FOCUS QUESTIONS
+Answer the following as completely as possible:
+
+1. What papers study how prompt wording, structure, length, ordering, decomposition, or other prompt interventions change MLLM/VLM performance?
+2. What papers study how prompt changes affect visual grounding, attribution, saliency, activation maps, interpretability, or explanation stability in MLLMs/VLMs?
+3. What papers do not study prompting directly, but contain findings strongly relevant to prompt ablation for explainability?
+4. What surveys or literature reviews summarize prompting, multimodal explainability, grounding, or interpretability in ways useful for this project?
+5. What benchmarks, datasets, repositories, or supplementary materials are especially useful for this line of work?
+6. What gaps, open problems, contradictions, and underexplored intersections appear at the boundary between prompting and MLLM explainability?
+
+OUTPUT FORMAT
+Produce a comprehensive, structured report with high recall.
+
+For each item, provide:
+- title
+- year
+- authors
+- venue / source type
+- category:
+  [directly relevant: MLLM + prompt + explainability]
+  [directly relevant: MLLM + prompt + performance]
+  [relevant methodology]
+  [survey / review]
+  [benchmark / dataset / code / supplementary]
+  [non-peer-reviewed useful source]
+- short summary of the main contribution
+- why it is relevant to this project
+- whether it speaks more to:
+  [output quality]
+  [explainability / grounding]
+  [both]
+- target model family if applicable
+- whether it includes code / benchmark / supplementary
+- confidence level for relevance: high / medium / low
+
+Then synthesize the literature into:
+1. Main thematic clusters
+2. Most relevant papers for our project
+3. Most relevant surveys/reviews
+4. Most relevant methodology-transfer papers
+5. Most relevant non-academic resources (separately labeled)
+6. Main open gaps for a study on prompt ablation for TAM-style explainability in MLLMs
+
+IMPORTANT FILTERING RULES
+- Prefer inclusion over exclusion at this stage.
+- High recall is more important than early pruning.
+- But keep the report organized and labeled.
+- Separate strong evidence from weak evidence.
+- Separate scientific literature from blogs/posts/documentation.
+- Do not fabricate relevance: if a paper is only loosely related, say so explicitly.
+- If evidence about explainability impact is indirect or inferential, mark it as indirect.
+- If a paper is mainly about performance and not interpretability, still include it if it gives strong evidence that prompt interventions alter multimodal behavior in ways relevant to explainability.
+
+SEARCH HINTS / QUERY EXPANSION
+Actively search for combinations of terms such as:
+- multimodal large language model prompt sensitivity interpretability
+- vision-language model prompting explainability
+- prompt robustness multimodal reasoning grounding
+- instruction design multimodal attribution
+- visual grounding prompt effects VLM
+- multimodal saliency prompt variation
+- token-level explanation multimodal prompt
+- chain-of-thought multimodal interpretability
+- prompt engineering vision-language models survey
+- multimodal explainability survey grounding attribution
+- LLaVA prompt robustness explanation
+- Qwen2-VL interpretability prompting
+- InternVL explainability prompt
+- multimodal activation map prompt effect
+- prompt intervention visual reasoning multimodal
+
+FINAL GOAL
+The final deliverable should help us answer:
+“What is already known about how prompt interventions change MLLM behavior, and what is specifically known or plausibly transferable about their effects on explainability, grounding, and TAM-like token-level visual explanations?”
+
+Per Perplexity, userei questa versione più corta:
+
+Find the state of the art on how prompt interventions affect Multimodal LLM / Vision-Language Model behavior, with emphasis on both:
+(1) output quality/performance, and
+(2) explainability, grounding, attribution, saliency, activation maps, and explanation stability.
+
+My project is about stress-testing explainability in MLLMs. The specific subtopic is prompt ablation: how wording, structure, ordering, length, decomposition, chain-of-thought, role prompting, self-refinement, and other prompt interventions affect multimodal grounding and TAM-style token-level visual explanations.
+
+Prioritize:
+- recent MLLM/VLM/LVLM work,
+- Qwen2-VL, LLaVA, InternVL when possible,
+- papers directly on prompting + multimodal explainability,
+- but also include broader methodology papers, surveys, literature reviews, benchmarks, datasets, code, and supplementary material when relevant.
+
+Search broadly for:
+- prompt sensitivity
+- prompt robustness
+- prompt brittleness
+- prompt optimization
+- multimodal prompting
+- visual grounding
+- saliency / attribution / activation maps
+- causal / probing / hidden-state interpretability
+- multimodal explainability
+- faithfulness vs plausibility
+- failure cases / bias / instability
+
+For each result, label it as:
+- directly relevant: MLLM + prompt + explainability
+- directly relevant: MLLM + prompt + performance
+- relevant methodology
+- survey/review
+- benchmark/dataset/code/supplementary
+- non-peer-reviewed useful source
+
+For each item, give title, year, venue/source, short contribution summary, why it matters for this project, and whether it informs output quality, explainability/grounding, or both.
+
+Then synthesize:
+- main thematic clusters
+- most relevant papers
+- best surveys/reviews
+- transferable methodology papers
+- useful benchmarks/code
+- open gaps for prompt ablation studies on TAM-like explainability in MLLMs
+
+Per Consensus, che rende meglio con richieste più “paper-centric”, userei questa:
+
+Find academic papers, surveys, and literature reviews on how prompt interventions affect multimodal large language models (MLLMs) or vision-language models (VLMs), especially regarding:
+
+1. output quality / task performance
+2. visual grounding
+3. saliency / attribution / activation maps
+4. explainability / interpretability
+5. explanation robustness / stability under prompt variation
+
+Prioritize recent papers, but include foundational older work if methodologically important.
+
+Main interest:
+- prompt ablation
+- prompt sensitivity / robustness / brittleness
+- prompt optimization / prompt engineering
+- wording, ordering, length, specificity
+- chain-of-thought, decomposition, role prompting, self-refinement
+- multimodal explainability, grounding, attribution, causal analysis, probing
+
+Focus on MLLMs/VLMs first, but include useful methodological papers from LLM-only, CLIP, ViT, or multimodal interpretability if transferable.
+
+For each paper, provide:
+- title
+- year
+- venue
+- main finding
+- relevance to prompt ablation in MLLM explainability
+- whether it mainly informs performance, explainability, or both
+
+Then summarize the main research trends and open gaps.
+
+La scelta migliore è questa: usa il master prompt qui dentro per una prima ricognizione larga, poi usa la versione Perplexity per allargare ancora il recall e la versione Consensus per ripulire la parte più strettamente scientifica. Quando hai i risultati, li porti qui e li trasformiamo in una tassonomia davvero leggibile

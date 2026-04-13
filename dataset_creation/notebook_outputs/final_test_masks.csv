@@ -1,0 +1,6 @@
+img_id,ann_id_principale,oggetto_principale,mask_path,overlay_path
+522713,571702,bench,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\masks\000000522713\bench_571702.png,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\overlays\000000522713_bench_571702_overlay.png
+572517,586476,bear,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\masks\000000572517\bear_586476.png,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\overlays\000000572517_bear_586476_overlay.png
+448365,638720,skateboard,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\masks\000000448365\skateboard_638720.png,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\overlays\000000448365_skateboard_638720_overlay.png
+400573,1078710,donut,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\masks\000000400573\donut_1078710.png,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\overlays\000000400573_donut_1078710_overlay.png
+403385,1096418,toilet,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\masks\000000403385\toilet_1096418.png,C:\Users\loryc\IdeaProjects\Test COCO\outputs\phase0\overlays\000000403385_toilet_1096418_overlay.png

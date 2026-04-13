@@ -1,0 +1,15 @@
+{
+  "img_id": 331352,
+  "path": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\data\\val2017\\000000331352.jpg",
+  "prompt": "What is the main object in the image? Answer with one word only.",
+  "output": "toilet",
+  "target_token": "toilet",
+  "ann_id": 1096069,
+  "object_name": "toilet",
+  "heatmap_path": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\phase0\\single_runs\\331352\\heatmaps\\331352_toilet_step_0.jpg",
+  "mask_path": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\phase0\\single_runs\\331352\\masks\\000000331352\\toilet_1096069.png",
+  "overlay_path": "C:\\Users\\loryc\\IdeaProjects\\Test COCO\\outputs\\phase0\\single_runs\\331352\\overlays\\000000331352_toilet_1096069_overlay.png",
+  "obj_iou": 0.2678873428107366,
+  "func_iou": 0.3888888888888889,
+  "f1_iou": 0.3172417211976998
+}

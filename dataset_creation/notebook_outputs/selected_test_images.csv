@@ -1,0 +1,6 @@
+img_id,path,prompt_suggerito,oggetto_principale,ann_id_principale,target_token_atteso,note
+522713,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000522713.jpg,What is the main object in the image? Answer with one word only.,bench,571702,bench,Aggiornato dopo il run TAM.
+572517,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000572517.jpg,What is the main object in the image? Answer with one word only.,bear,586476,bear,Aggiornato dopo il run TAM.
+448365,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000448365.jpg,What is the main object in the image? Answer with one word only.,skateboard,638720,skateboard,Aggiornato dopo il run TAM.
+400573,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000400573.jpg,What is the main object in the image? Answer with one word only.,donut,1078710,donut,Aggiornato dopo il run TAM.
+403385,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000403385.jpg,What bathroom object is most visible in the image? Answer with one word only.,toilet,1096418,toilet,Aggiornato dopo il run TAM.

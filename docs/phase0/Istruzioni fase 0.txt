@@ -1,0 +1,36 @@
+
+Fase 0 - Studio del paper di riferimento, configurazione dell'ambiente e preparazione del dataset
+
+1. Studio del paper di riferimento
+Studiate il paper di riferimento su TAM con attenzione alla logica generale del metodo. Non è richiesto un approfondimento matematico esaustivo, ma dovete comprendere chiaramente: quali sono gli input del metodo (immagine, prompt testuale, token target), quale output produce (heatmap delle regioni visive rilevanti per quel token), e qual è il suo scopo nell'ambito dell'interpretabilità dei modelli multimodali generativi. In particolare, dovete avere chiaro che TAM analizza il contributo visivo associato a un singolo token della sequenza generata, non all'intera risposta.
+2. Configurazione dell'ambiente e verifica della pipeline
+Familiarizzate con il codice TAM fornito senza modificarlo. Verificate il corretto funzionamento end-to-end dell'intera pipeline: immagine in input –>  prompt testuale --> generazione della risposta --> estrazione dei token --> produzione della heatmap per un token target selezionato. 
+All'interno del codice troverete alcuni residui delle sperimentazioni precedenti: una cartella di test, alcune maschere estratte manualmente e un file YAML per le relazioni spaziali. Per dataset come COCO, che forniscono annotazioni di segmentazione ufficiali, questi file non sono necessari e potete ignorarli. Per la generazione delle maschere a partire dalle annotazioni COCO è disponibile la libreria pycocotools, che semplifica notevolmente il processo. 
+3. Confidenza con il dataset COCO
+Familiarizzatevi con la struttura del dataset COCO: organizzazione delle immagini, formato delle annotazioni e struttura del file.. Poi, selezionate un sottoinsieme di 20–30 immagini dal dataset. Privilegiate immagini con uno o due oggetti chiaramente visibili, ben riconoscibili e non immersi in scene affollate o complesse. Scegliete immagini per cui siano disponibili le annotazioni di segmentazione, poiché queste verranno utilizzate come ground truth per il calcolo delle metriche.
+Producete un file dataset.csv con le colonne:
+img_id
+path
+obj_main
+ann_id_main
+…
+obj_n
+ann_id_n
+Per ciascuna immagine del subset, identificate l'annotazione COCO corrispondente tramite ann_id e convertite la segmentazione (poligoni o RLE) in maschera binaria alla risoluzione originale dell'immagine. Verificate visivamente che la maschera estratta corrisponda correttamente all'oggetto atteso. Queste maschere costituiranno il ground truth per il calcolo di Obj-IoU, Func-IoU e F1-IoU nelle fasi successive.
+4. Test della pipeline su almeno 5 immagini
+Eseguite la pipeline completa su almeno 5 immagini del subset selezionato. Per ciascuna immagine: generate la risposta a partire da un prompt semplice, estraete i token della risposta, selezionate un token target semanticamente significativo (preferibilmente corrispondente a un oggetto visivamente presente nell'immagine)  ed evitate parole funzionali o grammaticali. Producete la heatmap TAM per il token selezionato e calcolate le metriche Obj-IoU, Func-IoU e F1-IoU confrontando la heatmap con la maschera COCO corrispondente. Se avete letto il paper, vi sarà chiaro il significato di ciascuna metrica.
+Raccogliete i risultati nel file results_phase0.csv con le colonne:
+img_id
+prompt
+output
+target_token
+obj_iou
+func_iou
+f1_iou
+Se avete letto il paper vi sarà chiaro cosa siano obj_iou, func_iou, f1_iou
+5. Materiali da consegnare
+Organizzate i risultati nella seguente struttura:
+immagini originali, heatmap prodotte e relative visualizzazioni in overlay
+file dataset.csv
+file results_phase0.csv
+

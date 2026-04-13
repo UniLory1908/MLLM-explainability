@@ -1,0 +1,26 @@
+img_id,path,obj_main,ann_id_main,obj_1,ann_id_1,obj_2,ann_id_2
+403385,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000403385.jpg,toilet,1096418,toilet,1096418,sink,1131709
+348881,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000348881.jpg,airplane,247475,airplane,247475,person,185744
+522713,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000522713.jpg,bench,571702,bench,571702,,
+143931,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000143931.jpg,bus,168219,bus,168219,person,2155619
+303818,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000303818.jpg,bus,365995,bus,365995,car,1191953
+184321,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000184321.jpg,train,171481,train,171481,,
+565778,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000565778.jpg,train,174719,train,174719,person,224745
+297343,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000297343.jpg,stop sign,270208,stop sign,270208,,
+336587,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000336587.jpg,stop sign,270138,stop sign,270138,truck,1796885
+122745,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000122745.jpg,stop sign,271021,stop sign,271021,,
+85329,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000085329.jpg,person,555133,person,555133,tie,1840705
+239274,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000239274.jpg,boat,176328,boat,176328,,
+314294,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000314294.jpg,elephant,581352,elephant,581352,,
+475779,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000475779.jpg,elephant,580059,elephant,580059,,
+572517,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000572517.jpg,bird,37181,bird,37181,bear,586476
+270244,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000270244.jpg,zebra,591610,zebra,591610,,
+125211,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000125211.jpg,zebra,588463,zebra,588463,,
+382088,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000382088.jpg,horse,56733,horse,56733,,
+266409,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000266409.jpg,person,424092,person,424092,,
+80671,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000080671.jpg,person,1710090,person,1710090,skis,610498
+476258,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000476258.jpg,person,484929,person,484929,skateboard,643561
+448365,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000448365.jpg,person,439433,person,439433,skateboard,638720
+349860,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000349860.jpg,person,488820,person,488820,skateboard,639864
+180135,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000180135.jpg,person,467663,person,467663,skateboard,640102
+400573,C:\Users\loryc\IdeaProjects\Test COCO\data\val2017\000000400573.jpg,person,442987,person,442987,donut,1078710

@@ -1,0 +1,6 @@
+img_id,prompt,output,target_token,obj_iou,func_iou,f1_iou
+522713,What is the main object in the image? Answer with one word only.,bench,bench,0.0018824184537536393,0.4629156010230179,0.003749589427584618
+572517,What is the main object in the image? Answer with one word only.,polar bear,bear,0.4858423304135262,0.8927536231884058,0.6292452834229273
+448365,What is the main object in the image? Answer with one word only.,skateboard,skateboard,0.0013849825279127247,0.4956521739130435,0.002762246612333785
+400573,What is the main object in the image? Answer with one word only.,donut,donut,0.06956984054980807,0.319693094629156,0.1142723624996547
+403385,What bathroom object is most visible in the image? Answer with one word only.,toilet,toilet,0.011951829404890925,0.5193236714975845,0.023365910594850187

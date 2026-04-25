@@ -12,8 +12,7 @@ WORD_START_MARKER = "\u0120"
 
 
 def strip_token_piece(piece: str) -> str:
-    # Qwen espone i pezzi di token con un marker di spazio iniziale.
-    # Lo tolgo solo per rendere leggibile il testo ricostruito.
+    # Rimuove il marker di spazio iniziale usato da Qwen nei pezzi di token.
     piece = str(piece)
     if piece.startswith(WORD_START_MARKER):
         return piece[1:]
@@ -46,8 +45,7 @@ def piece_is_word_like(piece: str) -> bool:
 
 @lru_cache(maxsize=4)
 def load_tokenizer(model_name: str):
-    # I run storici non salvano sempre i pezzi raw del tokenizer.
-    # In quel caso ricostruisco i token pezzo per pezzo dal modello.
+    # Nei run storici i pezzi raw del tokenizer possono mancare.
     return AutoProcessor.from_pretrained(model_name).tokenizer
 
 
@@ -70,6 +68,7 @@ def build_word_groups(step_records: list[dict], token_pieces: list[str] | None =
     # Esempio:
     # - "to", "ilet" -> "toilet"
     # - "the", "Ġtoilet" -> due parole separate
+    # Raggruppa i pezzi del tokenizer in parole usando i marker di inizio parola.
     groups: list[dict] = []
     current: list[dict] = []
 

@@ -55,6 +55,7 @@ def load_json(path: Path) -> dict:
 
 
 def run_command(command: list[str], log_path: Path) -> float:
+    # Esegue un comando e salva stdout e stderr in un log dedicato.
     log_path.parent.mkdir(parents=True, exist_ok=True)
     start = time.time()
     with log_path.open("w", encoding="utf-8") as handle:

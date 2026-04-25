@@ -54,8 +54,7 @@ META_WORDS = {
 
 
 def parse_args() -> argparse.Namespace:
-    # La v3 non ricalcola le heatmap.
-    # Stringe solo il sottoinsieme dei confronti gia' costruiti dalla v2.
+    # La v3 restringe il sottoinsieme dei confronti prodotti dalla v2.
     parser = argparse.ArgumentParser(
         description="Build a more conservative heatmap stability analysis from analysis_v2 outputs.",
     )
@@ -72,14 +71,13 @@ def load_json(path: Path) -> dict:
 
 
 def normalize_word(word: str) -> str:
-    # Qui tengo una forma pulita della parola per i filtri esatti.
+    # Normalizzazione usata dai filtri esatti.
     cleaned = re.sub(r"[^a-zA-Z0-9]+", "", word.strip().lower())
     return cleaned
 
 
 def is_content_word(word: str) -> bool:
-    # Questa euristica vuole essere trasparente, non furba:
-    # tolgo parole troppo corte, numeriche o troppo funzionali.
+    # Esclude parole troppo corte, numeriche o troppo funzionali.
     normalized = normalize_word(word)
     if not normalized:
         return False
@@ -111,8 +109,7 @@ def to_float(value: str) -> float | None:
 
 
 def build_filtered_rows(step_rows: list[dict]) -> list[dict]:
-    # Costruisco una vista arricchita dei confronti word-level:
-    # stessa riga di v2, ma con i flag dei filtri conservativi.
+    # Aggiunge ai confronti della v2 i flag dei filtri conservativi.
     filtered = []
     for row in step_rows:
         word_a = row.get("word_a", "")
@@ -141,8 +138,7 @@ def aggregate_mode(
     filter_mode: str,
     keep_key: str,
 ) -> dict:
-    # Ogni modalita' di filtro produce un suo score aggregato.
-    # Cosi' posso confrontare "quanto perdo" in copertura e "quanto guadagno" in credibilita'.
+    # Ogni modalita' di filtro produce uno score aggregato separato.
     kept_rows = [row for row in prompt_rows if to_bool(row[keep_key])]
     total_rows = len(prompt_rows)
     excluded_rows = total_rows - len(kept_rows)
@@ -198,8 +194,7 @@ def build_markdown(
     aggregate_rows: list[dict],
     output_path: Path,
 ) -> None:
-    # Qui il punto non e' solo il ranking.
-    # Voglio rendere visibile anche quanto poco materiale resta dopo i filtri stretti.
+    # Report sintetico sul sottoinsieme conservativo costruito dalla v3.
     exact_rows = [row for row in aggregate_rows if row["filter_mode"] == "exact_match"]
     content_rows = [row for row in aggregate_rows if row["filter_mode"] == "content_match"]
     ranked_content = sorted(
@@ -294,8 +289,7 @@ def build_markdown(
 
 
 def main() -> None:
-    # La v3 vive sopra la v2:
-    # se la v2 non c'e', questa analisi non ha senso metodologico.
+    # La v3 dipende direttamente dagli output della v2.
     args = parse_args()
     run_dir = Path(args.run_dir).resolve()
     manifest = load_json(run_dir / "run_manifest.json")

@@ -29,8 +29,7 @@ from tam import TAM  # noqa: E402
 from scripts.common.prompt_word_utils import build_word_groups  # noqa: E402
 
 MODEL_NAME = "Qwen/Qwen2-VL-2B-Instruct"
-# Tengo qui un set minimo di fallback.
-# Serve solo per avere una prova pronta anche senza file JSON esterni.
+# Prompt minimi di fallback, utili per un test rapido senza file esterni.
 DEFAULT_PROMPTS = [
     {
         "id": "baseline",
@@ -46,14 +45,13 @@ DEFAULT_PROMPTS = [
 
 
 def slugify(value: str, max_len: int = 80) -> str:
-    # Mi serve un nome cartella stabile e leggibile a partire da label o prompt.
+    # Costruisce un nome di cartella stabile e leggibile.
     normalized = re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")
     return (normalized or "prompt")[:max_len]
 
 
 def step_artifact_stem(token_label: str, step_idx: int) -> str:
-    # Riuso la convenzione TAM gia' presente: step + indice + token leggibile.
-    # Cosi' i file non restano solo numerici.
+    # Mantiene la convenzione step + indice + token leggibile.
     return _safe_folder_name(token_label or "tok", step_idx)
 
 
@@ -77,8 +75,7 @@ def resolve_image_label(img_id: int | None, image_path: str, explicit_label: str
 
 
 def parse_layers(raw_value: str | None) -> list[int] | None:
-    # Le layer list arrivano da CLI come stringa semplice tipo "0,4,8".
-    # Qui le porto in una lista di interi senza introdurre altre dipendenze.
+    # Converte una lista di layer passata da CLI, ad esempio "0,4,8".
     if not raw_value:
         return None
     layers = []
@@ -91,8 +88,7 @@ def parse_layers(raw_value: str | None) -> list[int] | None:
 
 
 def build_messages(image_path: str, prompt_text: str) -> list[dict]:
-    # Per ogni prompt ricostruisco da zero il messaggio multimodale.
-    # Questo tiene isolati i run e rende il confronto cross-prompt pulito.
+    # Ricostruisce da zero il messaggio multimodale per mantenere i prompt isolati.
     return [{
         "role": "user",
         "content": [
@@ -103,9 +99,7 @@ def build_messages(image_path: str, prompt_text: str) -> list[dict]:
 
 
 def resolve_image(args: argparse.Namespace) -> tuple[str, int | None]:
-    # Supporto due modalita' semplici:
-    # - path immagine diretto
-    # - img_id COCO risolto dentro data/
+    # Supporta due modalita': path immagine diretto oppure img_id COCO.
     if args.image_path:
         return str(Path(args.image_path).resolve()), None
 
@@ -120,8 +114,7 @@ def resolve_image(args: argparse.Namespace) -> tuple[str, int | None]:
 
 
 def normalize_prompt_entry(entry: object, index: int) -> dict:
-    # Accetto sia stringhe nude sia oggetti piu' ricchi dal JSON.
-    # L'idea e' mantenere il formato facile da estendere ma leggero da usare.
+    # Accetta sia stringhe semplici sia oggetti piu' ricchi letti da JSON.
     if isinstance(entry, str):
         prompt_text = entry.strip()
         prompt_id = f"prompt_{index:02d}"
@@ -144,10 +137,7 @@ def normalize_prompt_entry(entry: object, index: int) -> dict:
 
 
 def load_prompts(args: argparse.Namespace) -> tuple[list[dict], str | None]:
-    # Ordine di priorita':
-    # 1. prompt passati da CLI
-    # 2. file JSON
-    # 3. fallback minimo locale
+    # Ordine di priorita': CLI, file JSON, fallback locale.
     if args.prompt:
         prompts = [normalize_prompt_entry(prompt, idx) for idx, prompt in enumerate(args.prompt)]
         return prompts, None
@@ -168,8 +158,7 @@ def load_prompts(args: argparse.Namespace) -> tuple[list[dict], str | None]:
 
 
 def save_summary_csv(summary_rows: list[dict], output_path: Path) -> None:
-    # Questo CSV e' il punto di accesso piu' comodo per una lettura rapida del run.
-    # I dettagli piu' fini restano nei metadata per-prompt.
+    # CSV sintetico del run; i dettagli restano nei metadata per prompt.
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "prompt_index",
@@ -201,9 +190,7 @@ def run_single_prompt(
     grid_cols: int,
     img_id: int | None,
 ) -> dict:
-    # Qui faccio il run di un solo prompt.
-    # Il modello resta caricato fuori da questa funzione, mentre tutto il resto
-    # viene ricostruito fresh per tenere i prompt indipendenti.
+    # Esegue un singolo prompt con stato conversazionale isolato.
     prompt_slug = slugify(prompt_entry["label"])
     prompt_dir = run_root / f"{prompt_index:02d}_{prompt_slug}"
     vis_dir = prompt_dir / "vis_results"
@@ -223,7 +210,7 @@ def run_single_prompt(
         return_tensors="pt",
     ).to(model.device)
 
-    # Misuro il tempo per avere un confronto semplice anche lato costo computazionale.
+    # Misura il tempo del singolo prompt.
     start = time.time()
     outputs = model.generate(
         **inputs,
@@ -248,8 +235,7 @@ def run_single_prompt(
         skip_special_tokens=True,
     ).strip()
 
-    # Questi identificatori sono quelli gia' usati nel flusso TAM per Qwen2-VL.
-    # Non li cambio qui: il prompt sweep deve riusare lo stesso comportamento del runner.
+    # Identificatori gia' usati nel flusso TAM per Qwen2-VL.
     special_ids = {
         "img_id": [151652, 151653],
         "prompt_id": [151653, [151645, 198, 151644, 77091]],
@@ -263,7 +249,7 @@ def run_single_prompt(
     image_dir = vis_dir / stem
     image_dir.mkdir(parents=True, exist_ok=True)
 
-    # Se non passo un subset di layer, considero tutti quelli disponibili.
+    # Se non viene passato un subset di layer, usa tutti quelli disponibili.
     run_layers = requested_layers if requested_layers is not None else list(range(n_layers))
     step_records: list[dict] = []
 
@@ -273,8 +259,7 @@ def run_single_prompt(
     )
 
     if not all_layers:
-        # Modalita' piu' leggera:
-        # salvo una heatmap per step usando l'ultimo layer, utile per sweep veloci.
+        # Modalita' leggera: una heatmap per step usando solo l'ultimo layer.
         logits = _build_logitlens_logits(outputs, model, n_layers - 1, n_layers)
         raw_map_records = []
         for step_idx in range(num_rounds):
@@ -301,8 +286,7 @@ def run_single_prompt(
                 "heatmap_path": str(save_path),
             })
     else:
-        # Modalita' piu' ricca:
-        # salvo heatmap per ogni step e per ogni layer richiesto, poi costruisco le grid.
+        # Modalita' completa: heatmap per ogni step e per ogni layer richiesto.
         layer_step_paths: dict[int, dict[int, Path]] = {}
         for layer_idx in run_layers:
             layer_dir = image_dir / f"layer_{layer_idx:03d}"
@@ -356,8 +340,7 @@ def run_single_prompt(
                 ),
             })
 
-    # Salvo tutto cio' che serve per confronti successivi senza dover rieseguire il modello.
-    # Qui tengo sia la parte testuale sia i path agli artifact visivi.
+    # Salva testo generato, metadati e path agli artifact visivi.
     metadata = {
         "prompt_index": prompt_index,
         "prompt_id": prompt_entry["id"],
@@ -399,8 +382,7 @@ def run_single_prompt(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    # La CLI resta volutamente piccola:
-    # abbastanza flessibile per gli esperimenti, ma senza trasformarla in un framework.
+    # CLI essenziale per i run di sweep.
     parser = argparse.ArgumentParser(
         description="Run Qwen2-VL + TAM on the same image with multiple prompts.",
     )
@@ -429,8 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    # Questo entrypoint e' separato dal run fase 0.
-    # Serve per esperimenti controllati sul prompt mantenendo fissi immagine e modello.
+    # Entry point dedicato agli sweep di prompt con immagine e modello fissi.
     parser = build_parser()
     args = parser.parse_args()
 
@@ -441,8 +422,7 @@ def main() -> None:
     all_layers = not args.final_layer_only
     requested_layers = parse_layers(args.layers)
 
-    # Ogni sweep finisce in una cartella dedicata.
-    # Cosi' posso lanciare piu' esperimenti sulla stessa immagine senza sovrascrivere nulla.
+    # Ogni sweep viene salvato in una cartella dedicata.
     image_dir_name = f"{Path(image_path).stem}_{image_label}"
     run_root = PROJECT_ROOT / "outputs" / "prompt_sensitivity" / image_dir_name / slugify(run_name)
     run_root.mkdir(parents=True, exist_ok=True)
@@ -455,8 +435,7 @@ def main() -> None:
     if requested_layers is not None:
         print(f"layers: {requested_layers}")
 
-    # Carico modello e processor una sola volta.
-    # Il guadagno principale dello sweep e' proprio evitare ricariche inutili tra prompt.
+    # Carica modello e processor una sola volta per l'intero sweep.
     print(f"Loading model: {MODEL_NAME}")
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         MODEL_NAME,
@@ -471,8 +450,7 @@ def main() -> None:
     else:
         print(f"[OK] final norm: {type(norm).__name__}")
 
-    # Eseguo i prompt in sequenza ma con stato conversazionale isolato.
-    # Il confronto scientifico ha senso solo se ogni prompt parte pulito.
+    # Esegue i prompt in sequenza mantenendo isolato lo stato conversazionale.
     summary_rows = []
     for prompt_index, prompt_entry in enumerate(prompts):
         summary_rows.append(
@@ -492,8 +470,7 @@ def main() -> None:
         )
 
     save_summary_csv(summary_rows, run_root / "prompt_runs.csv")
-    # Il manifest finale tiene insieme il run completo.
-    # E' il file piu' comodo da dare in input agli script di analisi.
+    # Il manifest finale riassume il run ed e' l'input principale delle analisi.
     manifest = {
         "run_name": run_name,
         "image_path": image_path,

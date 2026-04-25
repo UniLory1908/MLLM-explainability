@@ -1,0 +1,80 @@
+{
+  "run_name": "prompt_sensitivity_v2",
+  "description": "Prompt set v2 for overnight prompt sensitivity runs with a small core grounding block and a small stress block.",
+  "notes": {
+    "core_block": "Use this block for the main grounding interpretation.",
+    "stress_block": "Use this block for stronger priors or linguistic robustness checks."
+  },
+  "prompts": [
+    {
+      "id": "baseline_neutral",
+      "label": "baseline_neutral",
+      "category": "baseline",
+      "block": "core",
+      "prompt": "Describe the image."
+    },
+    {
+      "id": "image_grounded_visible_only",
+      "label": "image_grounded_visible_only",
+      "category": "image_grounded",
+      "block": "core",
+      "prompt": "Describe the image using only directly visible details in 2 or 3 sentences."
+    },
+    {
+      "id": "ambiguous_open",
+      "label": "ambiguous_open",
+      "category": "ambiguous",
+      "block": "core",
+      "prompt": "What is happening in the image?"
+    },
+    {
+      "id": "misleading_wrong_subject",
+      "label": "misleading_wrong_subject",
+      "category": "misleading",
+      "block": "core",
+      "prompt": "Describe the dog in the image."
+    },
+    {
+      "id": "contradictory_false_presupposition",
+      "label": "contradictory_false_presupposition",
+      "category": "contradictory",
+      "block": "core",
+      "prompt": "Describe the airplane flying in the image."
+    },
+    {
+      "id": "extra_knowledge_context",
+      "label": "extra_knowledge_context",
+      "category": "extra_knowledge",
+      "block": "core",
+      "prompt": "Describe the image and the likely function of the main visible object."
+    },
+    {
+      "id": "reasoning_controlled_brief",
+      "label": "reasoning_controlled_brief",
+      "category": "reasoning",
+      "block": "core",
+      "prompt": "Identify the main visible object and briefly explain why it is the most relevant."
+    },
+    {
+      "id": "strong_bias_prior_stress",
+      "label": "strong_bias_prior_stress",
+      "category": "bias_prior",
+      "block": "stress",
+      "prompt": "This is likely a bathroom scene. Describe the visible fixtures or equipment in the image."
+    },
+    {
+      "id": "lexical_ablation_visible_object",
+      "label": "lexical_ablation_visible_object",
+      "category": "micro_perturbation_lexical_ablation",
+      "block": "stress",
+      "prompt": "Describe the visible item in the image."
+    },
+    {
+      "id": "order_disruption_stress",
+      "label": "order_disruption_stress",
+      "category": "micro_perturbation_order_disruption",
+      "block": "stress",
+      "prompt": "Describe only visible details in image."
+    }
+  ]
+}

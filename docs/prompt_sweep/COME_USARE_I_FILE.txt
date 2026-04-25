@@ -1,0 +1,106 @@
+GUIDA RAPIDA AI FILE DEL PROMPT SWEEP
+=====================================
+
+1. OBIETTIVO
+
+Questa cartella del progetto contiene il codice per eseguire uno sweep di prompt su immagini COCO con Qwen2-VL + TAM e per analizzare offline gli artifact prodotti.
+
+Il mirror pubblico contiene:
+- codice;
+- configurazioni;
+- prompt set;
+- documentazione minima.
+
+Non contiene i risultati della run notturna finale.
+
+
+2. FILE DA LEGGERE PER PRIMI
+
+- README.md
+  Vista generale della repository e delle cartelle principali.
+
+- configs/image_registry.json
+  Elenco immagini con ID, alias leggibile e ruolo nel batch.
+
+- prompt_sets/prompt_sensitivity_v2.json
+  Prompt usati nello sweep.
+
+- prompt_sets/image_batch_overnight_v1.json
+  Immagini usate nella batch run.
+
+
+3. SCRIPT DI RUN
+
+- scripts/runs/run_qwen_tam_prompt_sweep.py
+  Esegue il prompt sweep su una singola immagine.
+  Salva per ogni prompt:
+  - risposta del modello;
+  - metadata;
+  - step generati;
+  - heatmap TAM per step.
+
+- scripts/runs/overnight_prompt_sweep.py
+  Esegue una batch run su piu' immagini e richiama in sequenza le analisi.
+
+- scripts/runs/phase0_run_qwen_tam.py
+  Script della fase 0, mantenuto per il materiale preparatorio gia' presente nel progetto.
+
+- scripts/runs/run_qwen_tam_intermediate.py
+  Script usato per ispezione intermedia e salvataggio di viste aggiuntive.
+
+
+4. SCRIPT DI ANALISI
+
+- scripts/analysis/analyze_prompt_sweep.py
+  Riepilogo base delle risposte generate.
+
+- scripts/analysis/analyze_prompt_sweep_v2.py
+  Prima misura di stabilita' delle heatmap.
+
+- scripts/analysis/analyze_prompt_sweep_v3.py
+  Vista piu' conservativa della v2.
+
+- scripts/analysis/analyze_prompt_sweep_v4.py
+  Matching controllato, usato come lettura principale della stabilita'.
+
+- scripts/analysis/analyze_misgrounding_v1.py
+  Ranking di casi sospetti, da leggere come supporto qualitativo.
+
+- scripts/analysis/summarize_overnight_runs.py
+  Riassunto cross-image di una batch run gia' conclusa.
+
+
+5. UTILITY COMUNE
+
+- scripts/common/prompt_word_utils.py
+  Funzioni condivise per:
+  - ricostruire parole dai pezzi del tokenizer;
+  - costruire i record word-level;
+  - unire le heatmap dei pezzi di una stessa parola.
+
+
+6. ORDINE DI USO CONSIGLIATO
+
+Caso A: singola immagine
+1. preparare dataset e dipendenze;
+2. lanciare scripts/runs/run_qwen_tam_prompt_sweep.py;
+3. lanciare in ordine:
+   - analyze_prompt_sweep.py
+   - analyze_prompt_sweep_v2.py
+   - analyze_prompt_sweep_v3.py
+   - analyze_prompt_sweep_v4.py
+   - analyze_misgrounding_v1.py
+
+Caso B: batch multi-image
+1. controllare prompt set e image batch;
+2. lanciare scripts/runs/overnight_prompt_sweep.py;
+3. usare summarize_overnight_runs.py se serve una sintesi compatta finale.
+
+
+7. NOTE PRATICHE
+
+- Il dataset COCO non e' incluso nella repository.
+- Il codice TAM esterno deve essere presente in external/tam-logit-lenses/ll_tam.
+- Gli output non vengono pubblicati qui: vanno generati in locale.
+- Le analisi v2, v3 e v4 lavorano a livello di parola ricostruita, non di token singolo.
+- La metrica misgrounding_v1 non e' una prova definitiva di misgrounding: serve come ranking euristico.

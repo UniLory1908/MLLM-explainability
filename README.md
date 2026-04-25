@@ -1,36 +1,89 @@
 # MLLM Explainability
 
-Repository condivisa per il progetto universitario su explainability nei Multimodal Large Language Models, con focus operativo su Qwen2-VL + TAM e sul materiale preparatorio della fase 0.
+Repository condivisa per il progetto universitario su explainability nei Multimodal Large Language Models, con focus operativo su Qwen2-VL + TAM.
+
+Questa repository contiene il codice e la documentazione minima per:
+- preparare il materiale della fase 0;
+- eseguire run locali con Qwen2-VL + TAM;
+- lanciare il prompt sweep e le analisi successive;
+- mantenere configurazioni e prompt set in file separati e leggibili.
+
+Non vengono aggiunti qui i risultati della run notturna del prompt sweep. Gli output possono essere rigenerati in locale oppure condivisi separatamente quando servono.
 
 ## Struttura
 
-- `phase0_run_qwen_tam.py`: script principale per eseguire Qwen2-VL + TAM sul subset selezionato e calcolare le metriche finali.
-- `run_qwen_tam_intermediate.py`: script di analisi intermedia per salvare heatmap e viste layer-by-layer.
-- `dataset_creation/`: notebook e artefatti usati per costruire il subset COCO e i file CSV di fase 0.
-- `outputs/`: risultati gia' prodotti con gli script.
-- `docs/`: documenti di progetto, istruzioni e materiale bibliografico utile.
-- `external/tam-logit-lenses/`: codice TAM esterno usato dagli script.
-- `data/`: cartella attesa per dataset COCO locale, non versionata.
+- `scripts/runs/`: script eseguibili per i run.
+- `scripts/analysis/`: script di analisi offline sugli artifact gia' prodotti.
+- `scripts/common/`: utility condivise tra runner e analisi.
+- `configs/`: configurazioni stabili, per esempio registro immagini.
+- `prompt_sets/`: set di prompt e batch di immagini usati dagli sweep.
+- `dataset_creation/`: notebook e file usati per costruire il subset COCO della fase 0.
+- `docs/`: documentazione operativa, note e riferimenti.
+- `external/tam-logit-lenses/`: codice TAM esterno richiesto dagli script.
+- `data/`: cartella attesa per il dataset COCO locale, non versionata.
 
-## Workflow attuale
+## Script principali
 
-1. Preparazione del subset COCO e delle maschere con il notebook in `dataset_creation/`.
-2. Esecuzione dello script `phase0_run_qwen_tam.py` per il run finale su immagini selezionate.
-3. Analisi piu' dettagliata con `run_qwen_tam_intermediate.py` quando serve ispezionare i layer.
+### Fase 0 e ispezione intermedia
 
-## Requisiti
+- `scripts/runs/phase0_run_qwen_tam.py`
+  Run locale della fase 0 su immagini selezionate.
 
-Installazione minima:
+- `scripts/runs/run_qwen_tam_intermediate.py`
+  Salva viste intermedie utili per controllare heatmap e layer.
+
+### Prompt sweep
+
+- `scripts/runs/run_qwen_tam_prompt_sweep.py`
+  Esegue uno sweep di prompt sulla stessa immagine e salva i metadata dei prompt, le risposte e le heatmap TAM per step.
+
+- `scripts/runs/overnight_prompt_sweep.py`
+  Lancia una batch run su piu' immagini e poi richiama in sequenza gli script di analisi.
+
+### Analisi offline
+
+- `scripts/analysis/analyze_prompt_sweep.py`
+  Riepilogo base delle risposte generate.
+
+- `scripts/analysis/analyze_prompt_sweep_v2.py`
+  Prima misura di stabilita' delle heatmap.
+
+- `scripts/analysis/analyze_prompt_sweep_v3.py`
+  Versione piu' conservativa della v2.
+
+- `scripts/analysis/analyze_prompt_sweep_v4.py`
+  Matching controllato piu' flessibile della v3 ma piu' difendibile della v2.
+
+- `scripts/analysis/analyze_misgrounding_v1.py`
+  Ranking euristico di casi sospetti, da leggere come supporto qualitativo.
+
+- `scripts/analysis/summarize_overnight_runs.py`
+  Sintesi compatta cross-image di una batch run gia' conclusa.
+
+## Configurazioni utili
+
+- `configs/image_registry.json`
+  Registro delle immagini con ID COCO, alias leggibile e ruolo nel batch.
+
+- `prompt_sets/prompt_sensitivity_v2.json`
+  Prompt set usato per il prompt sweep.
+
+- `prompt_sets/image_batch_overnight_v1.json`
+  Batch di immagini usato per la run multi-image.
+
+## Requisiti minimi
+
+Installazione:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Gli script si aspettano anche il codice TAM presente in `external/tam-logit-lenses/ll_tam`, gia' incluso in questa repo.
+Gli script si aspettano anche il codice TAM presente in `external/tam-logit-lenses/ll_tam`.
 
 ## Dataset locale
 
-Il dataset COCO completo non e' incluso nella repository. Va ricreato in locale seguendo [data/README.md](data/README.md).
+Il dataset COCO completo non e' incluso nella repository. Va preparato in locale seguendo [data/README.md](data/README.md).
 
 Struttura attesa:
 
@@ -42,14 +95,20 @@ data/
     *.jpg
 ```
 
-## Documentazione utile
+## Da dove iniziare
 
-- `docs/phase0/`: istruzioni operative della fase 0.
-- `docs/references/`: paper e materiale di riferimento su TAM ed explainability.
-- `docs/prompt_ablation/`: materiale preliminare per la parte di prompt ablation.
+Per una vista rapida dei file e dell'ordine d'uso:
+- `docs/prompt_sweep/COME_USARE_I_FILE.txt`
 
-## Note di collaborazione
+Per la parte di fase 0:
+- `docs/phase0/Istruzioni fase 0.txt`
 
-- versionare codice, notebook, CSV e output piccoli/riproducibili;
-- non versionare dataset COCO completo, ambienti virtuali, cache e output temporanei molto pesanti;
-- mantenere in root solo gli script Python di utilizzo effettivo di TAM.
+Per i riferimenti teorici:
+- `docs/references/`
+
+## Nota
+
+La repository privilegia chiarezza e riproducibilita'. Per questo:
+- gli script sono separati per fase;
+- i prompt e le immagini stanno in file JSON dedicati;
+- gli output pesanti non vengono aggiornati automaticamente nel mirror pubblico.

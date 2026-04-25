@@ -1,0 +1,28 @@
+{
+  "images": {
+    "30213": {
+      "label": "kitchen_counter",
+      "note": "Kitchen-like indoor scene with several objects."
+    },
+    "133645": {
+      "label": "bench_boat",
+      "note": "Open outdoor scene with bench and boat."
+    },
+    "331352": {
+      "label": "bathroom_toilet",
+      "note": "Bathroom scene with toilet as dominant object."
+    },
+    "393226": {
+      "label": "street_traffic",
+      "note": "Outdoor street scene with vehicles and people."
+    },
+    "426253": {
+      "label": "microwave_bottle",
+      "note": "Simple indoor appliance scene."
+    },
+    "555009": {
+      "label": "desk_monitor",
+      "note": "Indoor workspace-like scene with compact objects."
+    }
+  }
+}

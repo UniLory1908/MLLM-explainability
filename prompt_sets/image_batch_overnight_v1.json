@@ -1,0 +1,42 @@
+{
+  "run_name": "image_batch_overnight_v1",
+  "description": "Small overnight image batch with one hero image and five additional COCO validation images.",
+  "images": [
+    {
+      "img_id": 331352,
+      "image_label": "bathroom_toilet",
+      "role": "hero_indoor_clear",
+      "note": "Indoor bathroom scene with a clear dominant object."
+    },
+    {
+      "img_id": 426253,
+      "image_label": "microwave_bottle",
+      "role": "indoor_simple_appliance",
+      "note": "Simple indoor scene with a small number of salient objects."
+    },
+    {
+      "img_id": 30213,
+      "image_label": "kitchen_counter",
+      "role": "indoor_richer_kitchen",
+      "note": "Indoor kitchen-like scene with multiple visible objects."
+    },
+    {
+      "img_id": 555009,
+      "image_label": "desk_monitor",
+      "role": "indoor_cluttered_workspace",
+      "note": "Indoor desk-like scene with several compact objects."
+    },
+    {
+      "img_id": 393226,
+      "image_label": "street_traffic",
+      "role": "outdoor_street_scene",
+      "note": "Outdoor street scene with vehicles and people."
+    },
+    {
+      "img_id": 133645,
+      "image_label": "bench_boat",
+      "role": "outdoor_open_scene",
+      "note": "Outdoor scene with fewer objects and a more open layout."
+    }
+  ]
+}

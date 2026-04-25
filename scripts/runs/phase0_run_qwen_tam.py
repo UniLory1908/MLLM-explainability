@@ -10,31 +10,22 @@ from PIL import Image
 from pycocotools.coco import COCO
 from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-# Qui punto alla cartella del repository TAM che ho messo dentro il progetto.
-# Mi serve aggiungerla al path per poter importare i file Python del tool.
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[1] if SCRIPT_DIR.name == "runs" else SCRIPT_DIR
+# Percorso del repository TAM incluso nel progetto.
 LL_TAM_DIR = PROJECT_ROOT / "external" / "tam-logit-lenses" / "ll_tam"
 sys.path.insert(0, str(LL_TAM_DIR))
 
-# Funzioni prese dal file demo.py del repository TAM.
-# - _build_logitlens_logits: prepara i logits intermedi da cui poi ricavo la TAM
-# - _decode_tokens: converte gli id dei token in testo leggibile
-# - _num_rounds: dice quante "round" multimodali ci sono nel prompt
+# Funzioni di supporto dal repository TAM.
 from demo import _build_logitlens_logits, _decode_tokens, _num_rounds  # noqa: E402
-# Funzione del repository TAM per calcolare le metriche finali tra heatmap e maschera GT.
 from new_eval import compute_all_metrics  # noqa: E402
-# Utility del repository Qwen/TAM che separa input immagine e testo nel formato atteso dal modello.
 from qwen_utils import process_vision_info  # noqa: E402
-# Classe principale del tool TAM: prende i logits del modello e costruisce la heatmap del token scelto.
 from tam import TAM  # noqa: E402
 
 # Prompt base del run finale.
-# Qui non cerco una caption lunga, ma un nome oggetto semplice.
-# Mi serve un output corto per trovare piu' facilmente un token target utile per TAM.
+# L'obiettivo e' ottenere un nome oggetto corto, utile per la selezione del target TAM.
 PROMPT_DEFAULT = "What is the main object in the image? Answer with one word only."
-# Su questa immagine il prompt base tendeva a restituire "bathroom".
-# "bathroom" pero' non e' un oggetto COCO che posso usare bene per le metriche,
-# quindi qui rendo il prompt piu' specifico per far emergere "toilet".
+# Alcune immagini richiedono un prompt piu' specifico per far emergere un oggetto COCO utile.
 PROMPT_OVERRIDES = {
     403385: "What bathroom object is most visible in the image? Answer with one word only.",
 }
@@ -42,14 +33,12 @@ MODEL_NAME = "Qwen/Qwen2-VL-2B-Instruct"
 
 
 def load_binary_mask(mask_path: Path) -> np.ndarray:
-    # Riapro una maschera binaria gia' salvata su disco.
-    # Qui non la uso tanto, ma la tengo come utility utile per controlli veloci.
+    # Riapre una maschera binaria gia' salvata su disco.
     return (np.array(Image.open(mask_path).convert("L")) > 0).astype(np.uint8)
 
 
 def build_overlay(image: Image.Image, mask: np.ndarray, alpha: float = 0.35) -> Image.Image:
-    # Creo un overlay molto semplice: oggetto in rosso sopra l'immagine.
-    # Serve piu' per controllo visivo che per i calcoli.
+    # Crea un overlay semplice della maschera sopra l'immagine.
     image_np = np.array(image).copy()
     color_np = np.array((255, 0, 0), dtype=np.float32)
     image_np[mask.astype(bool)] = (
@@ -67,9 +56,7 @@ def save_mask_and_overlay(
     masks_root: Path,
     overlays_root: Path,
 ) -> tuple[Path, Path]:
-    # Qui risalvo maschera e overlay dell'oggetto che il modello ha effettivamente nominato.
-    # Questo passaggio e' importante perche' il target finale puo' cambiare rispetto a quello iniziale.
-    # Quindi voglio salvare la ground truth giusta del target davvero usato per le metriche.
+    # Salva maschera e overlay dell'oggetto effettivamente usato per le metriche.
     stem = image_path.stem
     obj_dir = masks_root / stem
     obj_dir.mkdir(parents=True, exist_ok=True)
@@ -81,8 +68,7 @@ def save_mask_and_overlay(
 
 
 def build_messages(image_path: str, prompt_text: str) -> list[dict]:
-    # Costruisco il messaggio multimodale minimo per Qwen2-VL:
-    # una immagine + un prompt testuale.
+    # Costruisce il messaggio multimodale minimo per Qwen2-VL.
     return [{
         "role": "user",
         "content": [
@@ -97,11 +83,7 @@ def find_object_match(
     output_text: str,
     dataset_row: pd.Series,
 ) -> tuple[str | None, int | None, int | None]:
-    # Qui collego l'output del modello a uno degli oggetti annotati nel dataset.
-    # Questo e' il passaggio che decide quale target uso davvero per TAM e metriche.
-    #
-    # Prima guardo obj_main/ann_id_main, cioe' il riferimento principale del dataset.
-    # Poi guardo anche gli altri oggetti annotati, nel caso il modello scelga un oggetto secondario.
+    # Collega l'output del modello a uno degli oggetti annotati nel dataset.
     objects: list[tuple[str, int, int]] = []
     for obj_col, ann_col in (
         ("obj_main", "ann_id_main"),
@@ -124,7 +106,6 @@ def find_object_match(
 
     output_words = output_text.lower().replace(",", " ").split()
     # Secondo tentativo: match sulle parole dell'output completo.
-    # Questo aiuta in casi tipo "polar bear", dove il token utile e' "bear".
     for word in output_words:
         for obj_name, ann_id, obj_idx in objects:
             if word == obj_name or obj_name in word or word in obj_name:
@@ -136,12 +117,7 @@ def find_object_match(
 
 
 def main() -> None:
-    # Qui parte il run finale vero e proprio.
-    # L'idea e':
-    # 1. leggere i file preparati dal notebook;
-    # 2. caricare il modello una sola volta;
-    # 3. fare il run sulle 5 immagini finali;
-    # 4. aggiornare i CSV con output, token, heatmap e metriche.
+    # Run finale della fase 0 sui file preparati dal notebook locale.
     phase0_dir = PROJECT_ROOT / "outputs" / "phase0"
     annotation_file = PROJECT_ROOT / "data" / "annotations" / "instances_val2017.json"
     masks_root = phase0_dir / "masks"
@@ -156,9 +132,7 @@ def main() -> None:
     dataset_df = pd.read_csv(dataset_path)
     coco = COCO(str(annotation_file))
 
-    # Alcune colonne devono restare testuali.
-    # Se non lo faccio, pandas prova a trattarle come numeri e poi da' errore
-    # quando provo a scriverci dentro stringhe come "bench" o "toilet".
+    # Alcune colonne devono restare testuali per evitare conversioni automatiche di pandas.
     for col in [
         "prompt_finale",
         "target_token_atteso",
@@ -175,8 +149,7 @@ def main() -> None:
 
     dataset_lookup = {int(row["img_id"]): row for _, row in dataset_df.iterrows()}
 
-    # Carico modello e processor una sola volta.
-    # Questa e' la parte pesante, quindi non va fatta dentro il loop.
+    # Carica modello e processor una sola volta.
     print("Loading model:", MODEL_NAME)
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         MODEL_NAME,
@@ -185,8 +158,7 @@ def main() -> None:
     )
     processor = AutoProcessor.from_pretrained(MODEL_NAME)
 
-    # Questo blocco arriva dalla logica tecnica del repository TAM usato per Qwen2-VL.
-    # In pratica dice a TAM dove stanno i token immagine, prompt e risposta.
+    # Identificatori richiesti dalla logica TAM usata per Qwen2-VL.
     special_ids = {
         "img_id": [151652, 151653],
         "prompt_id": [151653, [151645, 198, 151644, 77091]],
@@ -197,12 +169,7 @@ def main() -> None:
     final_mask_rows = []
 
     for row_idx, row in test_df.iterrows():
-        # Lavoro una immagine alla volta.
-        # Per ogni immagine voglio ottenere:
-        # - output del modello
-        # - target token davvero usato
-        # - heatmap TAM del token
-        # - metriche contro la maschera corretta
+        # Per ogni immagine salva output, target, heatmap e metriche finali.
         img_id = int(row["img_id"])
         image_path = Path(row["path"])
         prompt_text = PROMPT_OVERRIDES.get(img_id, PROMPT_DEFAULT)
@@ -220,8 +187,7 @@ def main() -> None:
             return_tensors="pt",
         ).to(model.device)
 
-        # Qui faccio la generazione vera del modello.
-        # Chiedo anche gli hidden states perche' poi servono a TAM.
+        # Generazione del modello con hidden states, necessari a TAM.
         start = time.time()
         outputs = model.generate(
             **inputs,
@@ -241,8 +207,7 @@ def main() -> None:
             skip_special_tokens=True,
         ).strip()
 
-        # Qui scelgo l'oggetto/target da usare davvero per TAM e metriche.
-        # Questo e' il collegamento tra output del modello e annotazioni COCO.
+        # Seleziona l'oggetto effettivamente usato per TAM e metriche.
         object_name, step_idx, ann_id = find_object_match(token_labels[:num_rounds], output_text, dataset_row)
         print(f"[{img_id}] output: {output_text} | chosen object: {object_name} | step: {step_idx} | secs: {elapsed}")
 
@@ -256,8 +221,7 @@ def main() -> None:
 
         if object_name is not None and step_idx is not None and ann_id is not None:
             target_token = object_name
-            # Se trovo un target valido, qui rigenero anche la maschera giusta dell'oggetto scelto.
-            # Mi serve per essere sicuro che la metrica venga calcolata sul target corretto.
+            # Rigenera la maschera corretta dell'oggetto scelto.
             image = Image.open(image_path).convert("RGB")
             ann = coco.loadAnns([ann_id])[0]
             mask = (coco.annToMask(ann) > 0).astype(np.uint8)
@@ -273,8 +237,7 @@ def main() -> None:
             mask_path = str(mask_file)
             overlay_path = str(overlay_file)
 
-            # Questa shape serve a TAM per ricostruire correttamente la parte visiva.
-            # Senza questa informazione la heatmap non si riallinea bene all'immagine.
+            # Questa shape serve a TAM per riallineare correttamente la parte visiva.
             vision_shape = (
                 int(inputs["image_grid_thw"][0, 1]) // 2,
                 int(inputs["image_grid_thw"][0, 2]) // 2,
@@ -285,7 +248,7 @@ def main() -> None:
                 len(outputs.hidden_states[0]) - 1,
                 len(outputs.hidden_states[0]),
             )
-            # Qui genero e salvo la heatmap TAM del token scelto davvero.
+            # Genera e salva la heatmap TAM del token scelto.
             heatmap_file = heatmaps_root / f"{img_id}_{target_token}_step_{step_idx}.jpg"
             img_map = TAM(
                 generated_ids[0].cpu().tolist(),
@@ -299,9 +262,7 @@ def main() -> None:
                 [],
                 False,
             )
-            # Qui calcolo le metriche finali della fase 0 contro la maschera COCO.
-            # Quelle che mi interessano davvero per la consegna sono:
-            # obj_iou, func_iou e f1_iou.
+            # Calcola le metriche finali della fase 0 contro la maschera COCO.
             metrics = compute_all_metrics(img_map, mask)
             heatmap_path = str(heatmap_file)
             obj_iou = float(metrics["obj_iou"])
@@ -316,12 +277,10 @@ def main() -> None:
                 "overlay_path": overlay_path,
             })
         else:
-            # Se non trovo un target valido, preferisco lasciare la riga vuota
-            # piuttosto che assegnare metriche al target sbagliato.
+            # Se non trova un target valido, lascia la riga senza metriche.
             print(f"[{img_id}] no usable target token found in generated output")
 
-        # Aggiorno la tabella finale riga per riga.
-        # Questa tabella e' il riferimento unico del run completo.
+        # Aggiorna la tabella finale riga per riga.
         test_df.loc[row_idx, "prompt_finale"] = prompt_text
         test_df.loc[row_idx, "target_token_atteso"] = object_name or row["target_token_atteso"]
         test_df.loc[row_idx, "oggetto_principale"] = object_name or row["oggetto_principale"]
@@ -345,8 +304,7 @@ def main() -> None:
             "f1_iou": f1_iou,
         })
 
-    # Alla fine riscrivo tutti i CSV importanti gia' aggiornati con i risultati reali del run.
-    # Cosi' notebook e script restano allineati sugli stessi file finali.
+    # Riscrive i CSV finali aggiornati con i risultati del run.
     final_masks_df = pd.DataFrame(final_mask_rows).drop_duplicates(subset=["img_id"], keep="last")
     final_masks_df.to_csv(phase0_dir / "final_test_masks.csv", index=False)
     test_df.to_csv(test_run_path, index=False)
@@ -375,10 +333,9 @@ def main() -> None:
         note="Aggiornato dopo il run TAM."
     ).to_csv(phase0_dir / "selected_test_images.csv", index=False)
 
-    # Questo e' il file finale piu' vicino alla consegna della fase 0.
     pd.DataFrame(results_rows).to_csv(phase0_dir / "results_phase0.csv", index=False)
 
-    # Controllo finale minimo: 5 righe valide con target e metriche.
+    # Controllo finale minimo sul numero di righe valide.
     valid_rows = sum(1 for row in results_rows if row["target_token"] and pd.notna(row["f1_iou"]))
     print(f"Valid rows with target token and metrics: {valid_rows}/{len(results_rows)}")
     print("\nSaved:", phase0_dir / "results_phase0.csv")

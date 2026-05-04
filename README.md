@@ -57,6 +57,9 @@ Non vengono aggiunti qui i risultati della run notturna del prompt sweep. Gli ou
 - `scripts/analysis/analyze_misgrounding_v1.py`
   Ranking euristico di casi sospetti, da leggere come supporto qualitativo.
 
+- `scripts/analysis/scanpath_viewer.py`
+  Costruisce frame, GIF e contact sheet a partire dai metadata scanpath del prompt sweep.
+
 - `scripts/analysis/summarize_overnight_runs.py`
   Sintesi compatta cross-image di una batch run gia' conclusa.
 
@@ -99,6 +102,7 @@ data/
 
 Per una vista rapida dei file e dell'ordine d'uso:
 - `docs/prompt_sweep/COME_USARE_I_FILE.txt`
+- `docs/prompt_sweep/Scanpath_Lettura.ipynb`
 
 Per la parte di fase 0:
 - `docs/phase0/Istruzioni fase 0.txt`

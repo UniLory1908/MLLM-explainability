@@ -7,6 +7,8 @@ import re
 import sys
 import time
 from pathlib import Path
+
+import numpy as np
 from pycocotools.coco import COCO
 from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 
@@ -26,7 +28,7 @@ from demo import (  # noqa: E402
 )
 from qwen_utils import process_vision_info  # noqa: E402
 from tam import TAM  # noqa: E402
-from scripts.common.prompt_word_utils import build_word_groups  # noqa: E402
+from scripts.common.prompt_word_utils import build_word_groups, estimate_heatmap_rgb  # noqa: E402
 
 MODEL_NAME = "Qwen/Qwen2-VL-2B-Instruct"
 # Prompt minimi di fallback, utili per un test rapido senza file esterni.
@@ -42,6 +44,11 @@ DEFAULT_PROMPTS = [
         "prompt": "Describe ONLY what is visible in the image.",
     },
 ]
+
+SCANPATH_THRESHOLD_PERCENTILE = 95.0
+SCANPATH_MIN_HOTSPOT_AREA = 64
+SCANPATH_TOPK_HOTSPOTS = 3
+SCANPATH_MAX_LINK_DISTANCE_RATIO = 0.18
 
 
 def slugify(value: str, max_len: int = 80) -> str:
@@ -177,6 +184,177 @@ def save_summary_csv(summary_rows: list[dict], output_path: Path) -> None:
         writer.writerows(summary_rows)
 
 
+def _extract_hotspots_from_heatmap(
+    heatmap_rgb: np.ndarray,
+    threshold_percentile: float,
+    min_area: int,
+    top_k: int,
+) -> list[dict]:
+    saliency = np.max(heatmap_rgb, axis=2).astype(np.float32)
+    positive = saliency[saliency > 0]
+    if positive.size == 0:
+        return []
+
+    threshold = float(np.percentile(positive, threshold_percentile))
+    mask = saliency >= threshold
+    if not np.any(mask):
+        return []
+
+    height, width = saliency.shape
+    visited = np.zeros_like(mask, dtype=bool)
+    hotspots: list[dict] = []
+
+    for y0 in range(height):
+        for x0 in range(width):
+            if not mask[y0, x0] or visited[y0, x0]:
+                continue
+
+            queue = [(y0, x0)]
+            visited[y0, x0] = True
+            component_pixels: list[tuple[int, int]] = []
+
+            while queue:
+                y, x = queue.pop()
+                component_pixels.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    yn = y + dy
+                    xn = x + dx
+                    if yn < 0 or yn >= height or xn < 0 or xn >= width:
+                        continue
+                    if visited[yn, xn] or not mask[yn, xn]:
+                        continue
+                    visited[yn, xn] = True
+                    queue.append((yn, xn))
+
+            area = len(component_pixels)
+            if area < min_area:
+                continue
+
+            ys = np.array([p[0] for p in component_pixels], dtype=np.int32)
+            xs = np.array([p[1] for p in component_pixels], dtype=np.int32)
+            weights = saliency[ys, xs]
+            weight_sum = float(weights.sum())
+            if weight_sum <= 0.0:
+                continue
+
+            cx = float((xs * weights).sum() / weight_sum)
+            cy = float((ys * weights).sum() / weight_sum)
+            hotspots.append({
+                "centroid_x": round(cx, 3),
+                "centroid_y": round(cy, 3),
+                "strength": round(weight_sum, 3),
+                "area": int(area),
+                "bbox_xyxy": [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())],
+                "threshold_value": round(threshold, 3),
+            })
+
+    hotspots.sort(key=lambda h: (h["strength"], h["area"]), reverse=True)
+    return hotspots[:top_k]
+
+
+def build_step_hotspots_and_scanpath(
+    step_records: list[dict],
+    image_path: str,
+    threshold_percentile: float,
+    min_area: int,
+    top_k: int,
+    max_link_distance_ratio: float,
+) -> tuple[list[dict], list[dict], list[dict]]:
+    enriched_steps: list[dict] = []
+    tracks: list[dict] = []
+    track_states: dict[int, dict] = {}
+    next_track_id = 0
+
+    diag = None
+    for step in step_records:
+        heatmap_path = step.get("heatmap_path")
+        if not heatmap_path or not Path(str(heatmap_path)).exists():
+            enriched_steps.append({**step, "hotspots": [], "dominant_hotspot": None})
+            continue
+
+        heatmap_rgb = estimate_heatmap_rgb(heatmap_path, image_path)
+        if diag is None:
+            h, w = heatmap_rgb.shape[:2]
+            diag = float((h ** 2 + w ** 2) ** 0.5)
+
+        hotspots = _extract_hotspots_from_heatmap(
+            heatmap_rgb=heatmap_rgb,
+            threshold_percentile=threshold_percentile,
+            min_area=min_area,
+            top_k=top_k,
+        )
+
+        step_idx = int(step.get("step_idx", len(enriched_steps)))
+        dominant_hotspot = hotspots[0] if hotspots else None
+        enriched_steps.append({**step, "hotspots": hotspots, "dominant_hotspot": dominant_hotspot})
+
+        if not hotspots:
+            continue
+
+        link_radius = (diag or 1.0) * max_link_distance_ratio
+        used_hotspots = set()
+        for track_id, state in list(track_states.items()):
+            best_idx = None
+            best_dist = None
+            for idx, hotspot in enumerate(hotspots):
+                if idx in used_hotspots:
+                    continue
+                dx = float(hotspot["centroid_x"]) - float(state["x"])
+                dy = float(hotspot["centroid_y"]) - float(state["y"])
+                dist = float((dx ** 2 + dy ** 2) ** 0.5)
+                if dist > link_radius:
+                    continue
+                if best_dist is None or dist < best_dist:
+                    best_dist = dist
+                    best_idx = idx
+            if best_idx is None:
+                continue
+            hotspot = hotspots[best_idx]
+            used_hotspots.add(best_idx)
+            state["x"] = float(hotspot["centroid_x"])
+            state["y"] = float(hotspot["centroid_y"])
+            state["last_step"] = step_idx
+            state["points"].append({
+                "step_idx": step_idx,
+                "centroid_x": hotspot["centroid_x"],
+                "centroid_y": hotspot["centroid_y"],
+                "strength": hotspot["strength"],
+                "area": hotspot["area"],
+            })
+
+        for idx, hotspot in enumerate(hotspots):
+            if idx in used_hotspots:
+                continue
+            track_states[next_track_id] = {
+                "x": float(hotspot["centroid_x"]),
+                "y": float(hotspot["centroid_y"]),
+                "last_step": step_idx,
+                "points": [{
+                    "step_idx": step_idx,
+                    "centroid_x": hotspot["centroid_x"],
+                    "centroid_y": hotspot["centroid_y"],
+                    "strength": hotspot["strength"],
+                    "area": hotspot["area"],
+                }],
+            }
+            next_track_id += 1
+
+    for track_id, state in track_states.items():
+        points = state["points"]
+        tracks.append({
+            "track_id": int(track_id),
+            "num_points": len(points),
+            "start_step": int(points[0]["step_idx"]),
+            "end_step": int(points[-1]["step_idx"]),
+            "mean_strength": round(float(np.mean([p["strength"] for p in points])), 3),
+            "points": points,
+        })
+
+    tracks.sort(key=lambda t: (t["num_points"], t["mean_strength"]), reverse=True)
+    dominant_scanpath = tracks[0]["points"] if tracks else []
+    return enriched_steps, tracks, dominant_scanpath
+
+
 def run_single_prompt(
     model,
     processor,
@@ -189,6 +367,10 @@ def run_single_prompt(
     max_new_tokens: int,
     grid_cols: int,
     img_id: int | None,
+    scanpath_threshold_percentile: float,
+    scanpath_min_hotspot_area: int,
+    scanpath_topk_hotspots: int,
+    scanpath_max_link_distance_ratio: float,
 ) -> dict:
     # Esegue un singolo prompt con stato conversazionale isolato.
     prompt_slug = slugify(prompt_entry["label"])
@@ -338,7 +520,17 @@ def run_single_prompt(
                     / stem
                     / step_artifact_stem(token_label, step_idx)
                 ),
+                "heatmap_path": str(layer_step_paths[max(run_layers)][step_idx]),
             })
+
+    step_records, scanpath_tracks, dominant_scanpath = build_step_hotspots_and_scanpath(
+        step_records=step_records,
+        image_path=image_path,
+        threshold_percentile=scanpath_threshold_percentile,
+        min_area=scanpath_min_hotspot_area,
+        top_k=scanpath_topk_hotspots,
+        max_link_distance_ratio=scanpath_max_link_distance_ratio,
+    )
 
     # Salva testo generato, metadati e path agli artifact visivi.
     metadata = {
@@ -362,6 +554,14 @@ def run_single_prompt(
         "vis_dir": str(vis_dir),
         "grids_dir": str(grids_dir) if all_layers else "",
         "step_records": step_records,
+        "scanpath": {
+            "threshold_percentile": scanpath_threshold_percentile,
+            "min_hotspot_area": scanpath_min_hotspot_area,
+            "topk_hotspots_per_step": scanpath_topk_hotspots,
+            "max_link_distance_ratio": scanpath_max_link_distance_ratio,
+            "tracks": scanpath_tracks,
+            "dominant_scanpath": dominant_scanpath,
+        },
     }
     metadata["word_records"] = build_word_groups(step_records, token_pieces[:num_rounds])
     metadata["generated_word_labels"] = [word["word_label"] for word in metadata["word_records"]]
@@ -403,6 +603,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--grid-cols", type=int, default=8)
     parser.add_argument("--layers", help="Comma-separated layer list, e.g. 0,4,8,12.")
     parser.add_argument(
+        "--scanpath-threshold-percentile",
+        type=float,
+        default=SCANPATH_THRESHOLD_PERCENTILE,
+        help="Percentile threshold used to detect hotspots from each TAM heatmap.",
+    )
+    parser.add_argument(
+        "--scanpath-min-hotspot-area",
+        type=int,
+        default=SCANPATH_MIN_HOTSPOT_AREA,
+        help="Minimum connected-component area kept as hotspot.",
+    )
+    parser.add_argument(
+        "--scanpath-topk-hotspots",
+        type=int,
+        default=SCANPATH_TOPK_HOTSPOTS,
+        help="Maximum number of hotspots retained for each step.",
+    )
+    parser.add_argument(
+        "--scanpath-max-link-distance-ratio",
+        type=float,
+        default=SCANPATH_MAX_LINK_DISTANCE_RATIO,
+        help="Tracking radius as ratio of image diagonal for linking hotspots between steps.",
+    )
+    parser.add_argument(
         "--final-layer-only",
         action="store_true",
         help="Save only final-layer TAM heatmaps instead of all layers + token grids.",
@@ -434,6 +658,10 @@ def main() -> None:
     print(f"all layers: {all_layers}")
     if requested_layers is not None:
         print(f"layers: {requested_layers}")
+    print(f"scanpath threshold percentile: {args.scanpath_threshold_percentile}")
+    print(f"scanpath min hotspot area: {args.scanpath_min_hotspot_area}")
+    print(f"scanpath top-k hotspots: {args.scanpath_topk_hotspots}")
+    print(f"scanpath max link distance ratio: {args.scanpath_max_link_distance_ratio}")
 
     # Carica modello e processor una sola volta per l'intero sweep.
     print(f"Loading model: {MODEL_NAME}")
@@ -466,6 +694,10 @@ def main() -> None:
                 max_new_tokens=args.max_new_tokens,
                 grid_cols=args.grid_cols,
                 img_id=img_id,
+                scanpath_threshold_percentile=args.scanpath_threshold_percentile,
+                scanpath_min_hotspot_area=args.scanpath_min_hotspot_area,
+                scanpath_topk_hotspots=args.scanpath_topk_hotspots,
+                scanpath_max_link_distance_ratio=args.scanpath_max_link_distance_ratio,
             )
         )
 

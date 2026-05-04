@@ -66,6 +66,9 @@ Non contiene i risultati della run notturna finale.
 - scripts/analysis/analyze_misgrounding_v1.py
   Ranking di casi sospetti, da leggere come supporto qualitativo.
 
+- scripts/analysis/scanpath_viewer.py
+  Legge i metadata scanpath e salva frame, GIF e contact sheet.
+
 - scripts/analysis/summarize_overnight_runs.py
   Riassunto cross-image di una batch run gia' conclusa.
 
@@ -79,7 +82,16 @@ Non contiene i risultati della run notturna finale.
   - unire le heatmap dei pezzi di una stessa parola.
 
 
-6. ORDINE DI USO CONSIGLIATO
+6. LETTURA SCANPATH
+
+- docs/prompt_sweep/Scanpath_Lettura.ipynb
+  Notebook leggero per leggere i metadata scanpath, rigenerare GIF e controllare i frame.
+
+- I risultati pesanti non stanno nella repository pubblica.
+  Il notebook puo' leggere sia gli output locali sia una cartella condivisa esterna.
+
+
+7. ORDINE DI USO CONSIGLIATO
 
 Caso A: singola immagine
 1. preparare dataset e dipendenze;
@@ -90,6 +102,7 @@ Caso A: singola immagine
    - analyze_prompt_sweep_v3.py
    - analyze_prompt_sweep_v4.py
    - analyze_misgrounding_v1.py
+4. se serve, usare scanpath_viewer.py oppure Scanpath_Lettura.ipynb per la lettura visuale.
 
 Caso B: batch multi-image
 1. controllare prompt set e image batch;
@@ -97,10 +110,11 @@ Caso B: batch multi-image
 3. usare summarize_overnight_runs.py se serve una sintesi compatta finale.
 
 
-7. NOTE PRATICHE
+8. NOTE PRATICHE
 
 - Il dataset COCO non e' incluso nella repository.
 - Il codice TAM esterno deve essere presente in external/tam-logit-lenses/ll_tam.
 - Gli output non vengono pubblicati qui: vanno generati in locale.
 - Le analisi v2, v3 e v4 lavorano a livello di parola ricostruita, non di token singolo.
 - La metrica misgrounding_v1 non e' una prova definitiva di misgrounding: serve come ranking euristico.
+- Lo scanpath e' una traiettoria stimata a partire dalle heatmap token-by-token, non eye-tracking reale.

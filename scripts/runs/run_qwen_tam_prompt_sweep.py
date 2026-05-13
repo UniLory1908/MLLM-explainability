@@ -28,10 +28,17 @@ from demo import (  # noqa: E402
 )
 from qwen_utils import process_vision_info  # noqa: E402
 from tam import TAM  # noqa: E402
-from scripts.common.prompt_word_utils import build_word_groups, estimate_heatmap_rgb  # noqa: E402
+from scripts.common.prompt_word_utils import (  # noqa: E402
+    build_word_groups,
+    estimate_heatmap_rgb,
+    load_saliency_map,
+    resize_saliency_map,
+    saliency_from_array,
+)
 
 MODEL_NAME = "Qwen/Qwen2-VL-2B-Instruct"
-# Prompt minimi di fallback, utili per un test rapido senza file esterni.
+# Tengo qui un set minimo di fallback.
+# Serve solo per avere una prova pronta anche senza file JSON esterni.
 DEFAULT_PROMPTS = [
     {
         "id": "baseline",
@@ -45,6 +52,7 @@ DEFAULT_PROMPTS = [
     },
 ]
 
+
 SCANPATH_THRESHOLD_PERCENTILE = 95.0
 SCANPATH_MIN_HOTSPOT_AREA = 64
 SCANPATH_TOPK_HOTSPOTS = 3
@@ -52,13 +60,14 @@ SCANPATH_MAX_LINK_DISTANCE_RATIO = 0.18
 
 
 def slugify(value: str, max_len: int = 80) -> str:
-    # Costruisce un nome di cartella stabile e leggibile.
+    # Mi serve un nome cartella stabile e leggibile a partire da label o prompt.
     normalized = re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")
     return (normalized or "prompt")[:max_len]
 
 
 def step_artifact_stem(token_label: str, step_idx: int) -> str:
-    # Mantiene la convenzione step + indice + token leggibile.
+    # Riuso la convenzione TAM gia' presente: step + indice + token leggibile.
+    # Cosi' i file non restano solo numerici.
     return _safe_folder_name(token_label or "tok", step_idx)
 
 
@@ -82,7 +91,8 @@ def resolve_image_label(img_id: int | None, image_path: str, explicit_label: str
 
 
 def parse_layers(raw_value: str | None) -> list[int] | None:
-    # Converte una lista di layer passata da CLI, ad esempio "0,4,8".
+    # Le layer list arrivano da CLI come stringa semplice tipo "0,4,8".
+    # Qui le porto in una lista di interi senza introdurre altre dipendenze.
     if not raw_value:
         return None
     layers = []
@@ -95,7 +105,8 @@ def parse_layers(raw_value: str | None) -> list[int] | None:
 
 
 def build_messages(image_path: str, prompt_text: str) -> list[dict]:
-    # Ricostruisce da zero il messaggio multimodale per mantenere i prompt isolati.
+    # Per ogni prompt ricostruisco da zero il messaggio multimodale.
+    # Questo tiene isolati i run e rende il confronto cross-prompt pulito.
     return [{
         "role": "user",
         "content": [
@@ -106,7 +117,9 @@ def build_messages(image_path: str, prompt_text: str) -> list[dict]:
 
 
 def resolve_image(args: argparse.Namespace) -> tuple[str, int | None]:
-    # Supporta due modalita': path immagine diretto oppure img_id COCO.
+    # Supporto due modalita' semplici:
+    # - path immagine diretto
+    # - img_id COCO risolto dentro data/
     if args.image_path:
         return str(Path(args.image_path).resolve()), None
 
@@ -121,7 +134,8 @@ def resolve_image(args: argparse.Namespace) -> tuple[str, int | None]:
 
 
 def normalize_prompt_entry(entry: object, index: int) -> dict:
-    # Accetta sia stringhe semplici sia oggetti piu' ricchi letti da JSON.
+    # Accetto sia stringhe nude sia oggetti piu' ricchi dal JSON.
+    # L'idea e' mantenere il formato facile da estendere ma leggero da usare.
     if isinstance(entry, str):
         prompt_text = entry.strip()
         prompt_id = f"prompt_{index:02d}"
@@ -144,7 +158,10 @@ def normalize_prompt_entry(entry: object, index: int) -> dict:
 
 
 def load_prompts(args: argparse.Namespace) -> tuple[list[dict], str | None]:
-    # Ordine di priorita': CLI, file JSON, fallback locale.
+    # Ordine di priorita':
+    # 1. prompt passati da CLI
+    # 2. file JSON
+    # 3. fallback minimo locale
     if args.prompt:
         prompts = [normalize_prompt_entry(prompt, idx) for idx, prompt in enumerate(args.prompt)]
         return prompts, None
@@ -165,7 +182,8 @@ def load_prompts(args: argparse.Namespace) -> tuple[list[dict], str | None]:
 
 
 def save_summary_csv(summary_rows: list[dict], output_path: Path) -> None:
-    # CSV sintetico del run; i dettagli restano nei metadata per prompt.
+    # Questo CSV e' il punto di accesso piu' comodo per una lettura rapida del run.
+    # I dettagli piu' fini restano nei metadata per-prompt.
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "prompt_index",
@@ -184,13 +202,14 @@ def save_summary_csv(summary_rows: list[dict], output_path: Path) -> None:
         writer.writerows(summary_rows)
 
 
-def _extract_hotspots_from_heatmap(
-    heatmap_rgb: np.ndarray,
+def _extract_hotspots_from_saliency(
+    saliency_map: np.ndarray,
     threshold_percentile: float,
     min_area: int,
     top_k: int,
 ) -> list[dict]:
-    saliency = np.max(heatmap_rgb, axis=2).astype(np.float32)
+    # La scanpath va calcolata sulla mappa TAM scalare, non sulla JPG colorata.
+    saliency = saliency_from_array(saliency_map)
     positive = saliency[saliency > 0]
     if positive.size == 0:
         return []
@@ -233,6 +252,7 @@ def _extract_hotspots_from_heatmap(
             ys = np.array([p[0] for p in component_pixels], dtype=np.int32)
             xs = np.array([p[1] for p in component_pixels], dtype=np.int32)
             weights = saliency[ys, xs]
+            strength = float(weights.sum())
             weight_sum = float(weights.sum())
             if weight_sum <= 0.0:
                 continue
@@ -242,7 +262,9 @@ def _extract_hotspots_from_heatmap(
             hotspots.append({
                 "centroid_x": round(cx, 3),
                 "centroid_y": round(cy, 3),
-                "strength": round(weight_sum, 3),
+                "strength": round(strength, 3),
+                "mean_value": round(float(weights.mean()), 3),
+                "peak_value": round(float(weights.max()), 3),
                 "area": int(area),
                 "bbox_xyxy": [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())],
                 "threshold_value": round(threshold, 3),
@@ -250,6 +272,52 @@ def _extract_hotspots_from_heatmap(
 
     hotspots.sort(key=lambda h: (h["strength"], h["area"]), reverse=True)
     return hotspots[:top_k]
+
+
+def _extract_hotspots_from_heatmap(
+    heatmap_rgb: np.ndarray,
+    threshold_percentile: float,
+    min_area: int,
+    top_k: int,
+) -> list[dict]:
+    return _extract_hotspots_from_saliency(
+        saliency_map=heatmap_rgb,
+        threshold_percentile=threshold_percentile,
+        min_area=min_area,
+        top_k=top_k,
+    )
+
+
+def save_raw_tam_map(
+    raw_map: np.ndarray,
+    raw_map_path: Path,
+    reference_heatmap_path: Path,
+    fallback_image_path: str,
+    fallback_size: tuple[int, int] | None = None,
+    fallback_width: int = 500,
+) -> tuple[str, list[int], list[int]]:
+    # TAM restituisce la mappa sulla griglia dei visual token.
+    # La salvo anche ridimensionata come la JPG, cosi' i centroidi hanno coordinate coerenti con il viewer.
+    if raw_map is None:
+        raise ValueError(f"TAM did not return a raw map for {reference_heatmap_path}")
+    scalar = saliency_from_array(raw_map)
+    original_shape = [int(scalar.shape[0]), int(scalar.shape[1])]
+    from PIL import Image
+
+    if reference_heatmap_path.exists():
+        width, height = Image.open(reference_heatmap_path).size
+        scalar = resize_saliency_map(scalar, (width, height))
+    elif fallback_size is not None:
+        scalar = resize_saliency_map(scalar, fallback_size)
+    elif fallback_image_path and Path(fallback_image_path).exists():
+        image = Image.open(fallback_image_path)
+        width = int(fallback_width)
+        height = max(1, int(float(image.height) / float(image.width) * width))
+        scalar = resize_saliency_map(scalar, (width, height))
+    resized_shape = [int(scalar.shape[0]), int(scalar.shape[1])]
+    raw_map_path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(raw_map_path, scalar.astype(np.float32))
+    return str(raw_map_path), original_shape, resized_shape
 
 
 def build_step_hotspots_and_scanpath(
@@ -260,25 +328,33 @@ def build_step_hotspots_and_scanpath(
     top_k: int,
     max_link_distance_ratio: float,
 ) -> tuple[list[dict], list[dict], list[dict]]:
+    # Estrae hotspot per step e collega i centroidi nel tempo per ottenere uno scanpath.
     enriched_steps: list[dict] = []
     tracks: list[dict] = []
     track_states: dict[int, dict] = {}
     next_track_id = 0
 
+    base_hw = None
     diag = None
     for step in step_records:
-        heatmap_path = step.get("heatmap_path")
-        if not heatmap_path or not Path(str(heatmap_path)).exists():
-            enriched_steps.append({**step, "hotspots": [], "dominant_hotspot": None})
-            continue
-
-        heatmap_rgb = estimate_heatmap_rgb(heatmap_path, image_path)
-        if diag is None:
-            h, w = heatmap_rgb.shape[:2]
+        raw_map_path = step.get("raw_map_path")
+        hotspot_source = "legacy_overlay_reconstruction"
+        if raw_map_path and Path(str(raw_map_path)).exists():
+            saliency = load_saliency_map(raw_map_path)
+            hotspot_source = "raw_tam_map"
+        else:
+            heatmap_path = step.get("heatmap_path")
+            if not heatmap_path or not Path(str(heatmap_path)).exists():
+                enriched_steps.append({**step, "hotspots": [], "dominant_hotspot": None})
+                continue
+            saliency = estimate_heatmap_rgb(heatmap_path, image_path)
+        if base_hw is None:
+            h, w = saliency.shape[:2]
+            base_hw = (h, w)
             diag = float((h ** 2 + w ** 2) ** 0.5)
 
-        hotspots = _extract_hotspots_from_heatmap(
-            heatmap_rgb=heatmap_rgb,
+        hotspots = _extract_hotspots_from_saliency(
+            saliency_map=saliency,
             threshold_percentile=threshold_percentile,
             min_area=min_area,
             top_k=top_k,
@@ -286,7 +362,12 @@ def build_step_hotspots_and_scanpath(
 
         step_idx = int(step.get("step_idx", len(enriched_steps)))
         dominant_hotspot = hotspots[0] if hotspots else None
-        enriched_steps.append({**step, "hotspots": hotspots, "dominant_hotspot": dominant_hotspot})
+        enriched_steps.append({
+            **step,
+            "hotspots": hotspots,
+            "dominant_hotspot": dominant_hotspot,
+            "hotspot_source": hotspot_source,
+        })
 
         if not hotspots:
             continue
@@ -372,7 +453,9 @@ def run_single_prompt(
     scanpath_topk_hotspots: int,
     scanpath_max_link_distance_ratio: float,
 ) -> dict:
-    # Esegue un singolo prompt con stato conversazionale isolato.
+    # Qui faccio il run di un solo prompt.
+    # Il modello resta caricato fuori da questa funzione, mentre tutto il resto
+    # viene ricostruito fresh per tenere i prompt indipendenti.
     prompt_slug = slugify(prompt_entry["label"])
     prompt_dir = run_root / f"{prompt_index:02d}_{prompt_slug}"
     vis_dir = prompt_dir / "vis_results"
@@ -392,7 +475,7 @@ def run_single_prompt(
         return_tensors="pt",
     ).to(model.device)
 
-    # Misura il tempo del singolo prompt.
+    # Misuro il tempo per avere un confronto semplice anche lato costo computazionale.
     start = time.time()
     outputs = model.generate(
         **inputs,
@@ -417,7 +500,8 @@ def run_single_prompt(
         skip_special_tokens=True,
     ).strip()
 
-    # Identificatori gia' usati nel flusso TAM per Qwen2-VL.
+    # Questi identificatori sono quelli gia' usati nel flusso TAM per Qwen2-VL.
+    # Non li cambio qui: il prompt sweep deve riusare lo stesso comportamento del runner.
     special_ids = {
         "img_id": [151652, 151653],
         "prompt_id": [151653, [151645, 198, 151644, 77091]],
@@ -429,9 +513,11 @@ def run_single_prompt(
     )
     stem = Path(image_path).stem
     image_dir = vis_dir / stem
+    raw_maps_dir = prompt_dir / "raw_maps" / stem
     image_dir.mkdir(parents=True, exist_ok=True)
+    raw_maps_dir.mkdir(parents=True, exist_ok=True)
 
-    # Se non viene passato un subset di layer, usa tutti quelli disponibili.
+    # Se non passo un subset di layer, considero tutti quelli disponibili.
     run_layers = requested_layers if requested_layers is not None else list(range(n_layers))
     step_records: list[dict] = []
 
@@ -441,14 +527,17 @@ def run_single_prompt(
     )
 
     if not all_layers:
-        # Modalita' leggera: una heatmap per step usando solo l'ultimo layer.
+        # Modalita' piu' leggera:
+        # salvo una heatmap per step usando l'ultimo layer, utile per sweep veloci.
         logits = _build_logitlens_logits(outputs, model, n_layers - 1, n_layers)
         raw_map_records = []
+        display_size: tuple[int, int] | None = None
         for step_idx in range(num_rounds):
             token_label = token_labels[step_idx] if step_idx < len(token_labels) else "tok"
             token_piece = token_pieces[step_idx] if step_idx < len(token_pieces) else token_label
-            save_path = image_dir / f"{step_artifact_stem(token_label, step_idx)}.jpg"
-            TAM(
+            step_label = step_artifact_stem(token_label, step_idx)
+            save_path = image_dir / f"{step_label}.jpg"
+            raw_map = TAM(
                 generated_ids[0].cpu().tolist(),
                 vision_shape,
                 logits,
@@ -460,26 +549,48 @@ def run_single_prompt(
                 raw_map_records,
                 False,
             )
+            raw_map_path, raw_map_shape, resized_raw_map_shape = save_raw_tam_map(
+                raw_map,
+                raw_maps_dir / f"{step_label}.npy",
+                save_path,
+                image_path,
+                display_size,
+            )
+            display_size = (resized_raw_map_shape[1], resized_raw_map_shape[0])
             step_records.append({
                 "step_idx": step_idx,
                 "token_label": token_label,
                 "token_piece": token_piece,
-                "step_label": step_artifact_stem(token_label, step_idx),
+                "step_label": step_label,
                 "heatmap_path": str(save_path),
+                "raw_map_path": raw_map_path,
+                "raw_map_shape": raw_map_shape,
+                "resized_raw_map_shape": resized_raw_map_shape,
             })
     else:
-        # Modalita' completa: heatmap per ogni step e per ogni layer richiesto.
+        # Modalita' piu' ricca:
+        # salvo heatmap per ogni step e per ogni layer richiesto, poi costruisco le grid.
         layer_step_paths: dict[int, dict[int, Path]] = {}
+        layer_raw_map_paths: dict[int, dict[int, str]] = {}
+        layer_raw_map_shapes: dict[int, dict[int, list[int]]] = {}
+        layer_resized_raw_map_shapes: dict[int, dict[int, list[int]]] = {}
         for layer_idx in run_layers:
             layer_dir = image_dir / f"layer_{layer_idx:03d}"
+            layer_raw_dir = raw_maps_dir / f"layer_{layer_idx:03d}"
             layer_dir.mkdir(parents=True, exist_ok=True)
+            layer_raw_dir.mkdir(parents=True, exist_ok=True)
             logits = _build_logitlens_logits(outputs, model, layer_idx, n_layers)
             img_scores_list = []
+            display_size: tuple[int, int] | None = None
             layer_step_paths[layer_idx] = {}
+            layer_raw_map_paths[layer_idx] = {}
+            layer_raw_map_shapes[layer_idx] = {}
+            layer_resized_raw_map_shapes[layer_idx] = {}
             for step_idx in range(num_rounds):
                 token_label = token_labels[step_idx] if step_idx < len(token_labels) else "tok"
-                save_path = layer_dir / f"{step_artifact_stem(token_label, step_idx)}.jpg"
-                TAM(
+                step_label = step_artifact_stem(token_label, step_idx)
+                save_path = layer_dir / f"{step_label}.jpg"
+                raw_map = TAM(
                     generated_ids[0].cpu().tolist(),
                     vision_shape,
                     logits,
@@ -492,6 +603,17 @@ def run_single_prompt(
                     False,
                 )
                 layer_step_paths[layer_idx][step_idx] = save_path
+                raw_map_path, raw_map_shape, resized_raw_map_shape = save_raw_tam_map(
+                    raw_map,
+                    layer_raw_dir / f"{step_label}.npy",
+                    save_path,
+                    image_path,
+                    display_size,
+                )
+                display_size = (resized_raw_map_shape[1], resized_raw_map_shape[0])
+                layer_raw_map_paths[layer_idx][step_idx] = raw_map_path
+                layer_raw_map_shapes[layer_idx][step_idx] = raw_map_shape
+                layer_resized_raw_map_shapes[layer_idx][step_idx] = resized_raw_map_shape
 
         _build_per_token_grids(
             stem,
@@ -506,21 +628,30 @@ def run_single_prompt(
         for step_idx in range(num_rounds):
             token_label = token_labels[step_idx] if step_idx < len(token_labels) else "tok"
             token_piece = token_pieces[step_idx] if step_idx < len(token_pieces) else token_label
+            step_label = step_artifact_stem(token_label, step_idx)
+            scanpath_layer = max(run_layers)
             step_records.append({
                 "step_idx": step_idx,
                 "token_label": token_label,
                 "token_piece": token_piece,
-                "step_label": step_artifact_stem(token_label, step_idx),
+                "step_label": step_label,
                 "layer_heatmaps": {
                     str(layer_idx): str(layer_step_paths[layer_idx][step_idx])
+                    for layer_idx in run_layers
+                },
+                "layer_raw_maps": {
+                    str(layer_idx): str(layer_raw_map_paths[layer_idx][step_idx])
                     for layer_idx in run_layers
                 },
                 "token_grid_dir": str(
                     grids_dir
                     / stem
-                    / step_artifact_stem(token_label, step_idx)
+                    / step_label
                 ),
-                "heatmap_path": str(layer_step_paths[max(run_layers)][step_idx]),
+                "heatmap_path": str(layer_step_paths[scanpath_layer][step_idx]),
+                "raw_map_path": str(layer_raw_map_paths[scanpath_layer][step_idx]),
+                "raw_map_shape": layer_raw_map_shapes[scanpath_layer][step_idx],
+                "resized_raw_map_shape": layer_resized_raw_map_shapes[scanpath_layer][step_idx],
             })
 
     step_records, scanpath_tracks, dominant_scanpath = build_step_hotspots_and_scanpath(
@@ -532,7 +663,8 @@ def run_single_prompt(
         max_link_distance_ratio=scanpath_max_link_distance_ratio,
     )
 
-    # Salva testo generato, metadati e path agli artifact visivi.
+    # Salvo tutto cio' che serve per confronti successivi senza dover rieseguire il modello.
+    # Qui tengo sia la parte testuale sia i path agli artifact visivi.
     metadata = {
         "prompt_index": prompt_index,
         "prompt_id": prompt_entry["id"],
@@ -555,6 +687,7 @@ def run_single_prompt(
         "grids_dir": str(grids_dir) if all_layers else "",
         "step_records": step_records,
         "scanpath": {
+            "source": "raw_tam_map",
             "threshold_percentile": scanpath_threshold_percentile,
             "min_hotspot_area": scanpath_min_hotspot_area,
             "topk_hotspots_per_step": scanpath_topk_hotspots,
@@ -582,7 +715,8 @@ def run_single_prompt(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    # CLI essenziale per i run di sweep.
+    # La CLI resta volutamente piccola:
+    # abbastanza flessibile per gli esperimenti, ma senza trasformarla in un framework.
     parser = argparse.ArgumentParser(
         description="Run Qwen2-VL + TAM on the same image with multiple prompts.",
     )
@@ -612,7 +746,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--scanpath-min-hotspot-area",
         type=int,
         default=SCANPATH_MIN_HOTSPOT_AREA,
-        help="Minimum connected-component area kept as hotspot.",
+        help="Minimum connected-component area (pixels) kept as hotspot.",
     )
     parser.add_argument(
         "--scanpath-topk-hotspots",
@@ -635,7 +769,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    # Entry point dedicato agli sweep di prompt con immagine e modello fissi.
+    # Questo entrypoint e' separato dal run fase 0.
+    # Serve per esperimenti controllati sul prompt mantenendo fissi immagine e modello.
     parser = build_parser()
     args = parser.parse_args()
 
@@ -646,7 +781,8 @@ def main() -> None:
     all_layers = not args.final_layer_only
     requested_layers = parse_layers(args.layers)
 
-    # Ogni sweep viene salvato in una cartella dedicata.
+    # Ogni sweep finisce in una cartella dedicata.
+    # Cosi' posso lanciare piu' esperimenti sulla stessa immagine senza sovrascrivere nulla.
     image_dir_name = f"{Path(image_path).stem}_{image_label}"
     run_root = PROJECT_ROOT / "outputs" / "prompt_sensitivity" / image_dir_name / slugify(run_name)
     run_root.mkdir(parents=True, exist_ok=True)
@@ -663,7 +799,8 @@ def main() -> None:
     print(f"scanpath top-k hotspots: {args.scanpath_topk_hotspots}")
     print(f"scanpath max link distance ratio: {args.scanpath_max_link_distance_ratio}")
 
-    # Carica modello e processor una sola volta per l'intero sweep.
+    # Carico modello e processor una sola volta.
+    # Il guadagno principale dello sweep e' proprio evitare ricariche inutili tra prompt.
     print(f"Loading model: {MODEL_NAME}")
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         MODEL_NAME,
@@ -678,7 +815,8 @@ def main() -> None:
     else:
         print(f"[OK] final norm: {type(norm).__name__}")
 
-    # Esegue i prompt in sequenza mantenendo isolato lo stato conversazionale.
+    # Eseguo i prompt in sequenza ma con stato conversazionale isolato.
+    # Il confronto scientifico ha senso solo se ogni prompt parte pulito.
     summary_rows = []
     for prompt_index, prompt_entry in enumerate(prompts):
         summary_rows.append(
@@ -702,7 +840,8 @@ def main() -> None:
         )
 
     save_summary_csv(summary_rows, run_root / "prompt_runs.csv")
-    # Il manifest finale riassume il run ed e' l'input principale delle analisi.
+    # Il manifest finale tiene insieme il run completo.
+    # E' il file piu' comodo da dare in input agli script di analisi.
     manifest = {
         "run_name": run_name,
         "image_path": image_path,

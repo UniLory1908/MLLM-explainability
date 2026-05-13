@@ -12,7 +12,8 @@ WORD_START_MARKER = "\u0120"
 
 
 def strip_token_piece(piece: str) -> str:
-    # Rimuove il marker di spazio iniziale usato da Qwen nei pezzi di token.
+    # Qwen espone i pezzi di token con un marker di spazio iniziale.
+    # Lo tolgo solo per rendere leggibile il testo ricostruito.
     piece = str(piece)
     if piece.startswith(WORD_START_MARKER):
         return piece[1:]
@@ -45,7 +46,8 @@ def piece_is_word_like(piece: str) -> bool:
 
 @lru_cache(maxsize=4)
 def load_tokenizer(model_name: str):
-    # Nei run storici i pezzi raw del tokenizer possono mancare.
+    # I run storici non salvano sempre i pezzi raw del tokenizer.
+    # In quel caso ricostruisco i token pezzo per pezzo dal modello.
     return AutoProcessor.from_pretrained(model_name).tokenizer
 
 
@@ -68,7 +70,6 @@ def build_word_groups(step_records: list[dict], token_pieces: list[str] | None =
     # Esempio:
     # - "to", "ilet" -> "toilet"
     # - "the", "Ġtoilet" -> due parole separate
-    # Raggruppa i pezzi del tokenizer in parole usando i marker di inizio parola.
     groups: list[dict] = []
     current: list[dict] = []
 
@@ -85,6 +86,7 @@ def build_word_groups(step_records: list[dict], token_pieces: list[str] | None =
             "source_token_labels": [piece["token_label"] for piece in current],
             "source_token_pieces": [piece["token_piece"] for piece in current],
             "source_heatmap_paths": [piece["heatmap_path"] for piece in current],
+            "source_raw_map_paths": [piece.get("raw_map_path", "") for piece in current],
         })
         current = []
 
@@ -105,6 +107,7 @@ def build_word_groups(step_records: list[dict], token_pieces: list[str] | None =
             "token_piece": token_piece,
             "piece_text": piece_text,
             "heatmap_path": str(step.get("heatmap_path", "")),
+            "raw_map_path": str(step.get("raw_map_path", "")),
         }
 
         starts_new_word = token_piece.startswith(WORD_START_MARKER)
@@ -139,7 +142,48 @@ def estimate_heatmap_rgb(overlay_path: str | Path, original_image_path: str | Pa
     return np.clip((2.0 * overlay) - raw_image, 0.0, 255.0)
 
 
+def saliency_from_array(value: np.ndarray) -> np.ndarray:
+    # Le nuove scanpath usano mappe TAM scalari.
+    # Mantengo anche l'input RGB per compatibilita' con i run vecchi.
+    array = np.asarray(value)
+    if array.ndim == 2:
+        return array.astype(np.float32)
+    if array.ndim == 3:
+        return np.max(array, axis=2).astype(np.float32)
+    raise ValueError(f"Unsupported saliency shape: {array.shape}")
+
+
+def load_saliency_map(path: str | Path) -> np.ndarray:
+    return saliency_from_array(np.load(path))
+
+
+def resize_saliency_map(saliency: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+    width, height = size
+    scalar = saliency_from_array(saliency)
+    if scalar.shape == (height, width):
+        return scalar.astype(np.float32)
+    image = Image.fromarray(scalar.astype(np.float32), mode="F")
+    return np.asarray(image.resize((width, height), Image.BILINEAR), dtype=np.float32)
+
+
+def saliency_to_uint8(saliency: np.ndarray) -> np.ndarray:
+    scalar = saliency_from_array(saliency)
+    if scalar.size == 0:
+        return scalar.astype(np.uint8)
+    min_value = float(np.nanmin(scalar))
+    max_value = float(np.nanmax(scalar))
+    denom = max(max_value - min_value, 1e-8)
+    return np.clip((scalar - min_value) / denom * 255.0, 0.0, 255.0).astype(np.uint8)
+
+
 def combined_word_heatmap(word_record: dict, original_image_path: str | Path) -> np.ndarray | None:
+    raw_map_paths = [Path(path) for path in word_record.get("source_raw_map_paths", []) if str(path)]
+    valid_raw_paths = [path for path in raw_map_paths if path.exists()]
+    if valid_raw_paths:
+        maps = [load_saliency_map(path) for path in valid_raw_paths]
+        if maps:
+            return np.maximum.reduce(maps)
+
     heatmap_paths = [Path(path) for path in word_record.get("source_heatmap_paths", []) if str(path)]
     valid_paths = [path for path in heatmap_paths if path.exists()]
     if not valid_paths:

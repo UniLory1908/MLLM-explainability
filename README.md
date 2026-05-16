@@ -35,10 +35,13 @@ Non vengono aggiunti qui i risultati della run notturna del prompt sweep. Gli ou
 ### Prompt sweep
 
 - `scripts/runs/run_qwen_tam_prompt_sweep.py`
-  Esegue uno sweep di prompt sulla stessa immagine e salva i metadata dei prompt, le risposte e le heatmap TAM per step.
+  Esegue uno sweep di prompt sulla stessa immagine e salva metadata, risposte, heatmap TAM per step e raw map TAM usate per lo scanpath.
 
 - `scripts/runs/overnight_prompt_sweep.py`
   Lancia una batch run su piu' immagini e poi richiama in sequenza gli script di analisi.
+
+- `scripts/runs/run_raw_scanpath_batch.ps1`
+  Launcher locale per rigenerare i run scanpath basati su raw map TAM sulle immagini del batch.
 
 ### Analisi offline
 
@@ -58,7 +61,10 @@ Non vengono aggiunti qui i risultati della run notturna del prompt sweep. Gli ou
   Ranking euristico di casi sospetti, da leggere come supporto qualitativo.
 
 - `scripts/analysis/scanpath_viewer.py`
-  Costruisce frame, GIF e contact sheet a partire dai metadata scanpath del prompt sweep.
+  Costruisce frame, GIF e contact sheet a partire dai metadata scanpath del prompt sweep. Se disponibili, usa le raw map TAM invece della JPG visuale.
+
+- `scripts/analysis/validate_raw_scanpath_batch.py`
+  Controlla che i run raw scanpath attesi abbiano metadata, raw map e hotspot dominanti coerenti.
 
 - `scripts/analysis/summarize_overnight_runs.py`
   Sintesi compatta cross-image di una batch run gia' conclusa.

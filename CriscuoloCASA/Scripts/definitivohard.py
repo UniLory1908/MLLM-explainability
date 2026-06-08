@@ -12,6 +12,15 @@ from qwen_utils import process_vision_info
 from pycocotools.coco import COCO
 from tam import TAM
 
+# --- 1. IMPOSTAZIONE SEED GLOBALE (RIPRODUCIBILITÀ) ---
+SEED = 12
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+# -----------------------------------------------------
+
 # --- CONFIGURAZIONE ARGOMENTI DA RIGA DI COMANDO (CLI) ---
 parser = argparse.ArgumentParser(description="VQA Misto con Object-Priority Token, Reverse Jet, K-Means Clustering e TBR.")
 parser.add_argument('-n', '--num_images', type=int, default=None)
@@ -43,7 +52,7 @@ model = Qwen2VLForConditionalGeneration.from_pretrained(model_name, device_map="
 special_ids = {'img_id': [151652, 151653], 'prompt_id': [151653, [151645, 198, 151644, 77091]], 'answer_id': [[198, 151644, 77091, 198], -1]}
 
 # --- PARAMETRI METODOLOGICI ---
-SOGLIA_TBR = 1.0 #Deve vedere più energia dentro l'oggetto che fuori per essere considerato un TP valido        
+SOGLIA_TBR = 1.0 #Deve vedere più energia dentro l'oggetto che fuori per essere considerato un TP valido 
 MIN_HOTSPOT_AREA = 200  
 MAX_EXTERNAL_DISTRACTORS = 0 
 K_CLUSTERS = 3  # Divisione in Sfondo, Alone (Penombra), e Core (Picco)
@@ -98,7 +107,8 @@ for index, row in df.iterrows():
     inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt").to(model.device)
     
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=20, do_sample=True, temperature=0.1, use_cache=True, output_hidden_states=True, return_dict_in_generate=True)
+        # --- 2. ALLINEAMENTO PARAMETRI: do_sample=False, rimossa temperature ---
+        outputs = model.generate(**inputs, max_new_tokens=20, do_sample=False, use_cache=True, output_hidden_states=True, return_dict_in_generate=True)
         
     generated_ids = outputs.sequences
     testo_generato = processor.decode(generated_ids[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True).strip()
@@ -157,30 +167,22 @@ for index, row in df.iterrows():
             heatmap_norm = cv2.resize(heatmap_norm, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
             
             # =================================================================
-            # K-MEANS CLUSTERING (Sostituisce Otsu)
+            # K-MEANS CLUSTERING 
             # =================================================================
             heatmap_8bit = (heatmap_norm * 255).astype(np.uint8) 
-            
-            # Appiattiamo l'immagine in un array 1D per K-Means
             pixel_values = heatmap_8bit.reshape((-1, 1)).astype(np.float32)
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
             
-            # Applichiamo K-Means con K=3
             _, labels, centers = cv2.kmeans(pixel_values, K_CLUSTERS, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-            
-            # Troviamo l'indice del cluster con il "centro" (valore energetico medio) più alto
             core_cluster_idx = np.argmax(centers)
             
-            # Ricostruiamo la mappa binaria: solo i pixel del cluster più alto diventano bianchi
             binary_map_raw = np.zeros_like(heatmap_8bit)
             binary_map_raw[labels.reshape(heatmap_8bit.shape) == core_cluster_idx] = 255
             
             cv2.imwrite(os.path.join(img_output_dir, "2_kmeans_raw.png"), binary_map_raw)
             
-            # Calcoliamo la soglia equivalente per il log (il valore minimo che è entrato nel cesto vincitore)
             min_val_in_core = np.min(pixel_values[labels == core_cluster_idx])
             soglia_kmeans_norm = min_val_in_core / 255.0
-            print(f"      [K-Means] Soglia di taglio classe Core Focus: {soglia_kmeans_norm:.2f}")
             
             # --- MORFOLOGIA E FILTRO AREA ---
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
@@ -302,7 +304,6 @@ for index, row in df.iterrows():
             failure_reason = "FP_Hallucination"; Neg_FP_Alluc += 1
             
             logits = [model.lm_head(f[-1]) for f in outputs.hidden_states]
-            
             token_ids = generated_ids[0][inputs['input_ids'].shape[1]:].cpu().tolist()
             token_obj_idx = -1
             token_yes_idx = -1
@@ -319,8 +320,7 @@ for index, row in df.iterrows():
             else: target_idx = 0
                 
             target_token_text = processor.decode([token_ids[target_idx]]).strip()
-            print(f"   [🔍] Token Selezionato per Allucinazione: '{target_token_text}' (Indice: {target_idx})")
-                
+            
             vision_shape = (inputs['image_grid_thw'][0, 1] // 2, inputs['image_grid_thw'][0, 2] // 2)
             percorso_tam = os.path.join(img_output_dir, "1_heatmap_tam.jpg")
             heatmap = TAM(generated_ids[0].cpu().tolist(), vision_shape, logits, special_ids, image_inputs, processor, percorso_tam, target_idx, [], False)
@@ -334,12 +334,10 @@ for index, row in df.iterrows():
                 heatmap_raw = heatmap.astype(np.float32)
                 h_min, h_max = np.min(heatmap_raw), np.max(heatmap_raw)
                 heatmap_norm = (heatmap_raw - h_min) / (h_max - h_min + 1e-8)
-
             heatmap_norm = cv2.resize(heatmap_norm, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
             
             heatmap_8bit = (heatmap_norm * 255).astype(np.uint8)
             
-            # --- K-MEANS PER ALLUCINAZIONI ---
             pixel_values = heatmap_8bit.reshape((-1, 1)).astype(np.float32)
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
             _, labels, centers = cv2.kmeans(pixel_values, K_CLUSTERS, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
@@ -372,7 +370,6 @@ for index, row in df.iterrows():
         'is_correct_id': is_correct_id, 'failure_reason': failure_reason
     })
 
-    # --- RESET PROFONDO CPU ---
     del inputs, image_inputs, video_inputs, outputs, generated_ids
     for var in ['logits', 'heatmap', 'heatmap_raw', 'heatmap_norm', 'heatmap_8bit', 'binary_map_raw', 'binary_map_morph', 'clean_binary_map', 'maschera_coco', 'orig_img', 'hsv_map', 'hue', 'heatmap_isolated', 'main_hotspot_mask', 'debug_vis', 'gt_contours', 'c_mask', 'target_hotspots', 'distractor_hotspots', 'pixel_values', 'labels', 'centers']:
         if var in locals(): del locals()[var]

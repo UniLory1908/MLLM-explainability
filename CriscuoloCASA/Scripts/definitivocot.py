@@ -11,6 +11,17 @@ from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from qwen_utils import process_vision_info
 from pycocotools.coco import COCO
 from tam import TAM
+import re
+
+# --- 1. IMPOSTAZIONE SEED GLOBALE (RIPRODUCIBILITÀ) ---
+# Questo garantisce che lo split 75/25 e i distrattori siano identici in ogni run
+SEED = 12
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+# -----------------------------------------------------
 
 # --- CONFIGURAZIONE ARGOMENTI DA RIGA DI COMANDO (CLI) ---
 parser = argparse.ArgumentParser(description="VQA CoT Spaziale con Object-Priority Token, K-Means Clustering e TBR.")
@@ -107,16 +118,38 @@ for index, row in df.iterrows():
     inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt").to(model.device)
     
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=150, do_sample=True, temperature=0.5, use_cache=True, output_hidden_states=True, return_dict_in_generate=True)
-        
+        outputs = model.generate(**inputs, max_new_tokens=150, do_sample=False, temperature=0.1, use_cache=True, output_hidden_states=True, return_dict_in_generate=True)        
     generated_ids = outputs.sequences
     testo_generato = processor.decode(generated_ids[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True).strip()
     testo_pulito = testo_generato.lower()
-    
     print(f"   [💬] Risposta Modello (CoT):\n'{testo_generato}'")
     
-    ha_confermato = "conclusion: yes" in testo_pulito or (target_obj.lower() in testo_pulito and "no" not in testo_pulito[-15:])
-    ha_negato = "conclusion: no" in testo_pulito
+    # ---------------------------------------------------------
+    # NUOVO PARSER SEMANTICO AVANZATO (REGEX)
+    # ---------------------------------------------------------
+    target_clean = re.escape(target_obj.lower())
+    
+    # Pattern 1: Negazioni esplicite. Cerca "no", "not" o "without" seguiti (entro 30 caratteri) 
+    # dall'oggetto target. Questo copre "no [obj]", "no red [obj]", "no indication of a [obj]".
+    # La "s?" finale gestisce automaticamente le risposte al plurale (es. "no bananas").
+    pattern_negazione = re.compile(rf"\b(no|not|without)\b.{0,30}\b{target_clean}s?\b")
+    
+    # Pattern 2: Verifica la presenza grezza della parola target
+    menziona_target = re.search(rf"\b{target_clean}s?\b", testo_pulito) is not None
+    
+    # Albero decisionale
+    if pattern_negazione.search(testo_pulito):
+        # Trovata la parola, ma preceduta da una negazione -> Negato
+        ha_confermato = False
+        ha_negato = True
+    elif menziona_target or testo_pulito.startswith("yes"):
+        # Trovata la parola senza negazioni vicine, o la frase inizia con Yes -> Confermato
+        ha_confermato = True
+        ha_negato = False
+    else:
+        # Se l'oggetto non è minimamente menzionato -> Negato/Fallito
+        ha_confermato = False
+        ha_negato = True
     
     # ---------------------------------------------------------
     # RICERCA TOKEN: Identificazione multipla per il CoT

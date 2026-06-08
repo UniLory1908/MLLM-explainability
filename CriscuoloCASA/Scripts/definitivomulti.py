@@ -13,6 +13,15 @@ from qwen_utils import process_vision_info
 from pycocotools.coco import COCO
 from tam import TAM
 
+# --- 1. IMPOSTAZIONE SEED GLOBALE (RIPRODUCIBILITÀ) ---
+SEED = 12
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+# -----------------------------------------------------
+
 # --- CONFIGURAZIONE ARGOMENTI ---
 parser = argparse.ArgumentParser(description="MCQ VQA con TAM su Parola/Lettera, Reverse Jet, K-Means e TBR.")
 parser.add_argument('-n', '--num_images', type=int, default=None)
@@ -110,7 +119,8 @@ for index, row in df.iterrows():
     inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt").to(model.device)
     
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=20, do_sample=True, temperature=0.1, use_cache=True, output_hidden_states=True, return_dict_in_generate=True)
+        # --- 2. ALLINEAMENTO PARAMETRI: do_sample=False, rimossa temperatura ---
+        outputs = model.generate(**inputs, max_new_tokens=20, do_sample=False, use_cache=True, output_hidden_states=True, return_dict_in_generate=True)
         
     generated_ids = outputs.sequences
     testo_generato = processor.decode(generated_ids[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True).strip()

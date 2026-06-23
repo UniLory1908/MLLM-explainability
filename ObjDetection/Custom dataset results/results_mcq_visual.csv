@@ -1,0 +1,101 @@
+img_id,query_type,prompt,output,target_token,token_index,num_target_hotspots,num_distractors,kmeans_threshold,tbr,is_correct_id,failure_reason
+403385,Positive,Which of the following objects is in this image? | A) sheep | B) spoon | C) microwave | D) toilet | Answer with the letter and the object name.,D,D,0,2,5,0.6,0.0,0,FP_Scattered
+331352,Positive,Which of the following objects is in this image? | A) hair drier | B) toilet | C) frisbee | D) potted plant | Answer with the letter and the object name.,B,B,0,3,0,0.549,0.0,0,FP_Mispointed
+143931,Negative,Which of the following objects is in this image? | A) zebra | B) suitcase | C) bowl | D) orange | Answer with the letter and the object name.,D,D,0,0,6,0.5137,0.0,0,FP_Hallucination
+153299,Positive,Which of the following objects is in this image? | A) hot dog | B) stop sign | C) giraffe | D) spoon | Answer with the letter and the object name.,C,C,0,1,0,0.4549,2.1491000652313232,1,None
+308394,Positive,Which of the following objects is in this image? | A) dog | B) dining table | C) potted plant | D) person | Answer with the letter and the object name.,D,D,0,2,10,0.5451,0.0,0,FP_Scattered
+41888,Negative,Which of the following objects is in this image? | A) zebra | B) train | C) bear | D) refrigerator | Answer with the letter and the object name.,A,A,0,0,7,0.6392,0.0,0,FP_Hallucination
+184321,Positive,Which of the following objects is in this image? | A) tv | B) toilet | C) hair drier | D) train | Answer with the letter and the object name.,D,D,0,2,2,0.5529,0.0,0,FP_Scattered
+297343,Positive,Which of the following objects is in this image? | A) fire hydrant | B) stop sign | C) umbrella | D) baseball bat | Answer with the letter and the object name.,B,B,0,1,9,0.6471,0.0,0,FP_Scattered
+336587,Positive,Which of the following objects is in this image? | A) dog | B) stop sign | C) baseball bat | D) sports ball | Answer with the letter and the object name.,B,B,0,0,7,0.7373,0.0,0,FP_Scattered
+122745,Positive,Which of the following objects is in this image? | A) motorcycle | B) remote | C) giraffe | D) stop sign | Answer with the letter and the object name.,D,D,0,0,8,0.7137,0.0,0,FP_Scattered
+555705,Positive,Which of the following objects is in this image? | A) cake | B) bus | C) frisbee | D) cat | Answer with the letter and the object name.,D,D,0,2,1,0.5333,0.0,0,FP_Scattered
+443303,Negative,Which of the following objects is in this image? | A) surfboard | B) traffic light | C) giraffe | D) skis | Answer with the letter and the object name.,A,A,0,0,4,0.6824,0.0,0,FP_Hallucination
+418281,Positive,Which of the following objects is in this image? | A) keyboard | B) hair drier | C) train | D) cow | Answer with the letter and the object name.,D,D,0,1,2,0.7098,0.0,0,FP_Scattered
+85329,Positive,Which of the following objects is in this image? | A) laptop | B) person | C) dining table | D) tv | Answer with the letter and the object name.,B,B,0,2,3,0.6588,0.0,0,FP_Scattered
+511321,Negative,Which of the following objects is in this image? | A) frisbee | B) umbrella | C) backpack | D) apple | Answer with the letter and the object name.,B,B,0,0,7,0.6627,0.0,0,FP_Hallucination
+314294,Positive,Which of the following objects is in this image? | A) elephant | B) bicycle | C) bus | D) remote | Answer with the letter and the object name.,A,A,0,1,4,0.5725,0.0,0,FP_Scattered
+475779,Negative,Which of the following objects is in this image? | A) toaster | B) remote | C) motorcycle | D) cow | Answer with the letter and the object name.,D,D,0,0,5,0.7333,0.0,0,FP_Hallucination
+572517,Positive,Which of the following objects is in this image? | A) snowboard | B) keyboard | C) oven | D) bird | Answer with the letter and the object name.,D,D,0,1,0,0.4706,2.560499906539917,1,None
+270244,Positive,Which of the following objects is in this image? | A) elephant | B) couch | C) zebra | D) potted plant | Answer with the letter and the object name.,C,C,0,1,7,0.698,0.0,0,FP_Scattered
+125211,Positive,Which of the following objects is in this image? | A) keyboard | B) couch | C) zebra | D) suitcase | Answer with the letter and the object name.,C,C,0,2,5,0.6,0.0,0,FP_Scattered
+562121,Positive,Which of the following objects is in this image? | A) zebra | B) person | C) motorcycle | D) dog | Answer with the letter and the object name.,A,A,0,1,4,0.5804,0.0,0,FP_Scattered
+382088,Positive,Which of the following objects is in this image? | A) horse | B) toilet | C) chair | D) truck | Answer with the letter and the object name.,A,A,0,1,5,0.451,0.0,0,FP_Scattered
+266409,Positive,Which of the following objects is in this image? | A) parking meter | B) person | C) pizza | D) handbag | Answer with the letter and the object name.,B,B,0,2,4,0.6196,0.0,0,FP_Scattered
+430961,Positive,Which of the following objects is in this image? | A) airplane | B) elephant | C) person | D) motorcycle | Answer with the letter and the object name.,C,C,0,1,3,0.5882,0.0,0,FP_Scattered
+80671,Positive,Which of the following objects is in this image? | A) broccoli | B) apple | C) person | D) bench | Answer with the letter and the object name.,C,C,0,2,4,0.6157,0.0,0,FP_Scattered
+476258,Negative,Which of the following objects is in this image? | A) mouse | B) sink | C) dog | D) suitcase | Answer with the letter and the object name.,C,C,0,0,8,0.5529,0.0,0,FP_Hallucination
+448365,Positive,Which of the following objects is in this image? | A) spoon | B) person | C) sandwich | D) parking meter | Answer with the letter and the object name.,B,B,0,3,3,0.6667,0.0,0,FP_Scattered
+35197,Positive,Which of the following objects is in this image? | A) backpack | B) person | C) cup | D) couch | Answer with the letter and the object name.,B,B,0,1,0,0.5647,2.786400079727173,1,None
+180135,Positive,Which of the following objects is in this image? | A) person | B) mouse | C) giraffe | D) potted plant | Answer with the letter and the object name.,A,A,0,4,1,0.7137,0.0,0,FP_Scattered
+180560,Positive,Which of the following objects is in this image? | A) person | B) frisbee | C) bench | D) fork | Answer with the letter and the object name.,A,A,0,4,2,0.5412,0.0,0,FP_Scattered
+347693,Positive,Which of the following objects is in this image? | A) bed | B) umbrella | C) surfboard | D) cake | Answer with the letter and the object name.,A,A,0,1,3,0.651,0.0,0,FP_Scattered
+39956,Positive,Which of the following objects is in this image? | A) keyboard | B) fork | C) elephant | D) bed | Answer with the letter and the object name.,D,D,0,3,6,0.6824,0.0,0,FP_Scattered
+66523,Positive,Which of the following objects is in this image? | A) train | B) frisbee | C) hot dog | D) bed | Answer with the letter and the object name.,D,D,0,4,0,0.6196,0.0,0,FP_Mispointed
+355257,Positive,Which of the following objects is in this image? | A) bed | B) bird | C) book | D) scissors | Answer with the letter and the object name.,A,A,0,2,4,0.7176,0.0,0,FP_Scattered
+142092,Positive,Which of the following objects is in this image? | A) bottle | B) pizza | C) mouse | D) banana | Answer with the letter and the object name.,B,B,0,1,5,0.6039,0.0,0,FP_Scattered
+199551,Positive,Which of the following objects is in this image? | A) kite | B) sheep | C) sink | D) bed | Answer with the letter and the object name.,D,D,0,3,1,0.749,0.0,0,FP_Scattered
+551215,Negative,Which of the following objects is in this image? | A) donut | B) carrot | C) surfboard | D) hair drier | Answer with the letter and the object name.,C,C,0,0,6,0.5647,0.0,0,FP_Hallucination
+544519,Positive,Which of the following objects is in this image? | A) bus | B) orange | C) hair drier | D) person | Answer with the letter and the object name.,D,D,0,2,2,0.6078,0.0,0,FP_Scattered
+96493,Positive,Which of the following objects is in this image? | A) keyboard | B) broccoli | C) orange | D) couch | Answer with the letter and the object name.,D,D,0,5,0,0.6157,1.2223000526428223,0,FP_LowEnergy
+399462,Negative,Which of the following objects is in this image? | A) microwave | B) cat | C) skateboard | D) baseball bat | Answer with the letter and the object name.,C,C,0,0,1,0.6863,0.0,0,FP_Hallucination
+342006,Negative,Which of the following objects is in this image? | A) sheep | B) motorcycle | C) wine glass | D) suitcase | Answer with the letter and the object name.,B,B,0,0,3,0.6353,0.0,0,FP_Hallucination
+236412,Negative,Which of the following objects is in this image? | A) surfboard | B) umbrella | C) backpack | D) elephant | Answer with the letter and the object name.,C,C,0,0,9,0.5373,0.0,0,FP_Hallucination
+153343,Positive,Which of the following objects is in this image? | A) laptop | B) bench | C) teddy bear | D) banana | Answer with the letter and the object name.,C,C,0,2,7,0.6745,0.0,0,FP_Scattered
+231339,Positive,Which of the following objects is in this image? | A) horse | B) hot dog | C) keyboard | D) refrigerator | Answer with the letter and the object name.,D,D,0,4,4,0.6314,0.0,0,FP_Scattered
+550426,Positive,Which of the following objects is in this image? | A) vase | B) pizza | C) keyboard | D) orange | Answer with the letter and the object name.,A,A,0,1,6,0.5765,0.0,0,FP_Scattered
+368294,Positive,Which of the following objects is in this image? | A) person | B) laptop | C) apple | D) elephant | Answer with the letter and the object name.,A,A,0,2,9,0.5333,0.0,0,FP_Scattered
+263796,Positive,Which of the following objects is in this image? | A) traffic light | B) hair drier | C) toilet | D) apple | Answer with the letter and the object name.,C,C,0,2,4,0.651,0.0,0,FP_Scattered
+487583,Positive,Which of the following objects is in this image? | A) fire hydrant | B) truck | C) toilet | D) cake | Answer with the letter and the object name.,C,C,0,2,2,0.6078,0.0,0,FP_Scattered
+504711,Positive,Which of the following objects is in this image? | A) clock | B) fork | C) teddy bear | D) motorcycle | Answer with the letter and the object name.,B,B,0,1,0,0.5373,2.3977999687194824,1,None
+379453,Positive,Which of the following objects is in this image? | A) airplane | B) spoon | C) bed | D) cake | Answer with the letter and the object name.,A,A,0,1,4,0.6549,0.0,0,FP_Scattered
+29393,Positive,Which of the following objects is in this image? | A) dog | B) spoon | C) toothbrush | D) truck | Answer with the letter and the object name.,A,A,0,2,4,0.7686,0.0,0,FP_Scattered
+48153,Positive,Which of the following objects is in this image? | A) hair drier | B) person | C) mouse | D) cow | Answer with the letter and the object name.,B,B,0,2,2,0.6549,0.0,0,FP_Scattered
+223130,Positive,Which of the following objects is in this image? | A) tv | B) spoon | C) chair | D) giraffe | Answer with the letter and the object name.,D,D,0,1,2,0.5373,0.0,0,FP_Scattered
+344059,Positive,Which of the following objects is in this image? | A) spoon | B) giraffe | C) laptop | D) umbrella | Answer with the letter and the object name.,B,B,0,1,4,0.5216,0.0,0,FP_Scattered
+87875,Positive,Which of the following objects is in this image? | A) baseball glove | B) fire hydrant | C) book | D) toothbrush | Answer with the letter and the object name.,B,B,0,1,9,0.6863,0.0,0,FP_Scattered
+460160,Positive,Which of the following objects is in this image? | A) donut | B) spoon | C) bird | D) kite | Answer with the letter and the object name.,C,C,0,1,7,0.6784,0.0,0,FP_Scattered
+30675,Positive,Which of the following objects is in this image? | A) sink | B) train | C) elephant | D) teddy bear | Answer with the letter and the object name.,B,B,0,3,7,0.5804,0.0,0,FP_Scattered
+338428,Positive,Which of the following objects is in this image? | A) spoon | B) keyboard | C) apple | D) bus | Answer with the letter and the object name.,D,D,0,1,8,0.6118,0.0,0,FP_Scattered
+545826,Positive,Which of the following objects is in this image? | A) cat | B) fork | C) tie | D) apple | Answer with the letter and the object name.,A,A,0,2,1,0.7333,0.0,0,FP_Scattered
+269314,Positive,Which of the following objects is in this image? | A) bus | B) hot dog | C) banana | D) microwave | Answer with the letter and the object name.,C,C,0,1,6,0.6196,0.0,0,FP_Scattered
+476415,Negative,Which of the following objects is in this image? | A) baseball bat | B) bench | C) oven | D) bear | Answer with the letter and the object name.,B,B,0,0,5,0.6392,0.0,0,FP_Hallucination
+84477,Positive,Which of the following objects is in this image? | A) snowboard | B) umbrella | C) tennis racket | D) bed | Answer with the letter and the object name.,B,B,0,2,5,0.6314,0.0,0,FP_Scattered
+562243,Positive,Which of the following objects is in this image? | A) surfboard | B) frisbee | C) tie | D) dog | Answer with the letter and the object name.,C,C,0,2,3,0.6275,0.0,0,FP_Scattered
+181859,Positive,Which of the following objects is in this image? | A) tv | B) couch | C) carrot | D) cat | Answer with the letter and the object name.,D,D,0,3,8,0.6157,0.0,0,FP_Scattered
+288042,Positive,Which of the following objects is in this image? | A) suitcase | B) kite | C) hair drier | D) person | Answer with the letter and the object name.,D,D,0,0,5,0.6941,0.0,0,FP_Scattered
+453860,Positive,Which of the following objects is in this image? | A) suitcase | B) horse | C) motorcycle | D) wine glass | Answer with the letter and the object name.,A,A,0,1,3,0.6235,0.0,0,FP_Scattered
+375015,Positive,Which of the following objects is in this image? | A) tennis racket | B) tv | C) cow | D) bear | Answer with the letter and the object name.,D,D,0,3,0,0.5608,2.905600070953369,1,None
+283520,Positive,Which of the following objects is in this image? | A) truck | B) person | C) chair | D) donut | Answer with the letter and the object name.,B,B,0,1,4,0.498,0.0,0,FP_Scattered
+319721,Positive,Which of the following objects is in this image? | A) zebra | B) horse | C) cup | D) kite | Answer with the letter and the object name.,B,B,0,2,1,0.4824,0.0,0,FP_Scattered
+118921,Positive,Which of the following objects is in this image? | A) person | B) parking meter | C) cup | D) hair drier | Answer with the letter and the object name.,A,A,0,1,5,0.6392,0.0,0,FP_Scattered
+785,Positive,Which of the following objects is in this image? | A) person | B) sandwich | C) oven | D) baseball bat | Answer with the letter and the object name.,A,A,0,1,2,0.6314,0.0,0,FP_Scattered
+300842,Negative,Which of the following objects is in this image? | A) kite | B) bench | C) skis | D) sink | Answer with the letter and the object name.,C,C,0,0,9,0.6863,0.0,0,FP_Hallucination
+99242,Positive,Which of the following objects is in this image? | A) person | B) clock | C) backpack | D) microwave | Answer with the letter and the object name.,A,A,0,1,4,0.5608,0.0,0,FP_Scattered
+314709,Positive,Which of the following objects is in this image? | A) carrot | B) apple | C) remote | D) person | Answer with the letter and the object name.,D,D,0,1,8,0.7373,0.0,0,FP_Scattered
+409475,Positive,Which of the following objects is in this image? | A) bed | B) cell phone | C) refrigerator | D) person | Answer with the letter and the object name.,D,D,0,1,5,0.6,0.0,0,FP_Scattered
+464786,Negative,Which of the following objects is in this image? | A) airplane | B) cake | C) sandwich | D) cow | Answer with the letter and the object name.,C,C,0,0,8,0.7255,0.0,0,FP_Hallucination
+372577,Negative,Which of the following objects is in this image? | A) wine glass | B) frisbee | C) donut | D) skateboard | Answer with the letter and the object name.,D,D,0,0,7,0.4745,0.0,0,FP_Hallucination
+212166,Negative,Which of the following objects is in this image? | A) surfboard | B) bowl | C) apple | D) train | Answer with the letter and the object name.,B,B,0,0,3,0.5451,0.0,0,FP_Hallucination
+84431,Negative,Which of the following objects is in this image? | A) toothbrush | B) boat | C) bird | D) sheep | Answer with the letter and the object name.,A,A,0,0,7,0.5412,0.0,0,FP_Hallucination
+100582,Positive,Which of the following objects is in this image? | A) suitcase | B) dining table | C) hot dog | D) banana | Answer with the letter and the object name.,B,B,0,9,0,0.5725,1.5805000066757202,0,FP_LowEnergy
+555412,Positive,Which of the following objects is in this image? | A) cup | B) book | C) pizza | D) bed | Answer with the letter and the object name.,C,C,0,9,1,0.6078,0.0,0,FP_Scattered
+4495,Positive,Which of the following objects is in this image? | A) couch | B) handbag | C) bear | D) cake | Answer with the letter and the object name.,A,A,0,1,2,0.6314,0.0,0,FP_Scattered
+31050,Positive,Which of the following objects is in this image? | A) parking meter | B) vase | C) toothbrush | D) tv | Answer with the letter and the object name.,B,B,0,1,7,0.5569,0.0,0,FP_Scattered
+239537,Positive,Which of the following objects is in this image? | A) person | B) sink | C) cup | D) vase | Answer with the letter and the object name.,A,A,0,2,6,0.5216,0.0,0,FP_Scattered
+340930,Positive,Which of the following objects is in this image? | A) scissors | B) skis | C) truck | D) wine glass | Answer with the letter and the object name.,A,A,0,5,3,0.5961,0.0,0,FP_Scattered
+11813,Negative,Which of the following objects is in this image? | A) knife | B) zebra | C) boat | D) cake | Answer with the letter and the object name.,A,A,0,0,5,0.7059,0.0,0,FP_Hallucination
+281414,Positive,Which of the following objects is in this image? | A) person | B) fork | C) bowl | D) orange | Answer with the letter and the object name.,A,A,0,1,6,0.6235,0.0,0,FP_Scattered
+284282,Positive,Which of the following objects is in this image? | A) suitcase | B) handbag | C) dining table | D) tv | Answer with the letter and the object name.,C,C,0,3,1,0.6275,0.0,0,FP_Scattered
+521282,Positive,Which of the following objects is in this image? | A) elephant | B) remote | C) umbrella | D) vase | Answer with the letter and the object name.,D,D,0,1,4,0.5922,0.0,0,FP_Scattered
+108026,Positive,Which of the following objects is in this image? | A) umbrella | B) person | C) hair drier | D) sheep | Answer with the letter and the object name.,B,B,0,6,2,0.6706,0.0,0,FP_Scattered
+397327,Positive,Which of the following objects is in this image? | A) bird | B) umbrella | C) cow | D) toilet | Answer with the letter and the object name.,D,D,0,3,7,0.6627,0.0,0,FP_Scattered
+376442,Positive,Which of the following objects is in this image? | A) cup | B) traffic light | C) dining table | D) toilet | Answer with the letter and the object name.,D,D,0,4,1,0.5961,0.0,0,FP_Scattered
+187243,Positive,Which of the following objects is in this image? | A) person | B) carrot | C) zebra | D) handbag | Answer with the letter and the object name.,A,A,0,1,6,0.6784,0.0,0,FP_Scattered
+293044,Positive,Which of the following objects is in this image? | A) dining table | B) toothbrush | C) bear | D) cup | Answer with the letter and the object name.,A,A,0,3,0,0.6863,0.0,0,FP_Mispointed
+560279,Positive,Which of the following objects is in this image? | A) elephant | B) toilet | C) horse | D) mouse | Answer with the letter and the object name.,B,B,0,4,3,0.5608,0.0,0,FP_Scattered
+42276,Positive,Which of the following objects is in this image? | A) remote | B) toilet | C) baseball glove | D) sheep | Answer with the letter and the object name.,B,B,0,0,5,0.6824,0.0,0,FP_Scattered
+190756,Positive,Which of the following objects is in this image? | A) zebra | B) hot dog | C) motorcycle | D) refrigerator | Answer with the letter and the object name.,C,C,0,1,4,0.6118,0.0,0,FP_Scattered
+199977,Positive,Which of the following objects is in this image? | A) cell phone | B) airplane | C) train | D) potted plant | Answer with the letter and the object name.,B,B,0,1,4,0.6314,0.0,0,FP_Scattered
+442480,Negative,Which of the following objects is in this image? | A) handbag | B) fire hydrant | C) motorcycle | D) clock | Answer with the letter and the object name.,B,B,0,0,7,0.7176,0.0,0,FP_Hallucination
+384350,Positive,Which of the following objects is in this image? | A) tie | B) refrigerator | C) parking meter | D) airplane | Answer with the letter and the object name.,D,D,0,2,0,0.5922,0.0,0,FP_Mispointed

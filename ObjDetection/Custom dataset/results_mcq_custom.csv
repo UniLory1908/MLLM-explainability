@@ -1,0 +1,29 @@
+img_id,query_type,prompt,output,target_token,token_index,num_target_hotspots,num_distractors,kmeans_threshold,tbr,is_correct_id,failure_reason
+1,Positive,Which of the following objects is in this image? | A) radiator | B) trash bin | C) remote control | D) controller | Answer with the letter and the object name.,A,A,0,5,11,0.5569000244140625,0.0,0,FP_Scattered
+2,Positive,Which of the following objects is in this image? | A) cardboard box | B) hoodie | C) pen | D) remote control | Answer with the letter and the object name.,C,C,0,1,4,0.6588000059127808,0.0,0,FP_Scattered
+3,Positive,Which of the following objects is in this image? | A) vase | B) bag | C) dog | D) door | Answer with the letter and the object name.,A,A,0,1,7,0.5450999736785889,0.0,0,FP_Scattered
+4,Positive,Which of the following objects is in this image? | A) boots | B) controller | C) dog | D) pot | Answer with the letter and the object name.,D,D,0,0,7,0.53329998254776,0.0,0,FP_Scattered
+5,Positive,Which of the following objects is in this image? | A) mouse | B) cup | C) cabinet | D) vase | Answer with the letter and the object name.,B,B,0,1,1,0.5764999985694885,0.0,0,FP_Scattered
+6,Positive,Which of the following objects is in this image? | A) hairdryer | B) backpack | C) cabinet | D) controller | Answer with the letter and the object name.,C,C,0,3,7,0.5764999985694885,0.0,0,FP_Scattered
+7,Positive,Which of the following objects is in this image? | A) tree | B) hairdryer | C) dog | D) bike | Answer with the letter and the object name.,C,C,0,1,6,0.36079999804496765,0.0,0,FP_Scattered
+8,Positive,Which of the following objects is in this image? | A) bottle | B) tablet | C) bulb | D) hairdryer | Answer with the letter and the object name.,A,A,0,2,1,0.47839999198913574,0.0,0,FP_Scattered
+9,Positive,Which of the following objects is in this image? | A) backpack | B) boots | C) chair | D) stone | Answer with the letter and the object name.,A,A,0,3,5,0.6313999891281128,0.0,0,FP_Scattered
+10,Positive,Which of the following objects is in this image? | A) door | B) remote control | C) cup | D) backpack | Answer with the letter and the object name.,A,A,0,10,0,0.6157000064849854,1.291599988937378,1,None
+12,Positive,Which of the following objects is in this image? | A) controller | B) dog | C) bulb | D) shoes | Answer with the letter and the object name.,D,D,0,1,4,0.5019999742507935,0.0,0,FP_Scattered
+13,Positive,Which of the following objects is in this image? | A) television | B) cardboard box | C) stone | D) backpack | Answer with the letter and the object name.,C,C,0,1,11,0.6470999717712402,0.0,0,FP_Scattered
+14,Positive,Which of the following objects is in this image? | A) vase | B) tree | C) controller | D) mouse | Answer with the letter and the object name.,D,D,0,1,3,0.5569000244140625,0.0,0,FP_Scattered
+15,Positive,Which of the following objects is in this image? | A) bottle | B) bulb | C) pot | D) cabinet | Answer with the letter and the object name.,B,B,0,1,10,0.5175999999046326,0.0,0,FP_Scattered
+16,Positive,Which of the following objects is in this image? | A) umbrella | B) bike | C) remote control | D) stone | Answer with the letter and the object name.,B,B,0,1,11,0.5098000168800354,0.0,0,FP_Scattered
+17,Positive,Which of the following objects is in this image? | A) door | B) tablet | C) laptop | D) tree | Answer with the letter and the object name.,C,B,-1,0,0,0.0,0.0,0,FN_WrongChoice
+18,Positive,Which of the following objects is in this image? | A) tablet | B) laptop | C) controller | D) cabinet | Answer with the letter and the object name.,B,B,0,2,3,0.5764999985694885,0.0,0,FP_Scattered
+19,Positive,Which of the following objects is in this image? | A) controller | B) bottle | C) umbrella | D) shoes | Answer with the letter and the object name.,A,A,0,0,6,0.6510000228881836,0.0,0,FP_Scattered
+20,Positive,Which of the following objects is in this image? | A) controller | B) pen | C) pot | D) table | Answer with the letter and the object name.,D,D,0,3,7,0.5411999821662903,0.0,0,FP_Scattered
+21,Positive,Which of the following objects is in this image? | A) television | B) shoes | C) dog | D) vase | Answer with the letter and the object name.,A,A,0,4,5,0.5529000163078308,0.0,0,FP_Scattered
+22,Positive,Which of the following objects is in this image? | A) vase | B) table | C) radiator | D) chair | Answer with the letter and the object name.,A,A,-1,0,0,0.0,0.0,0,FN_WrongChoice
+23,Positive,Which of the following objects is in this image? | A) bulb | B) bag | C) controller | D) door | Answer with the letter and the object name.,B,B,0,2,4,0.40779998898506165,0.0,0,FP_Scattered
+25,Positive,Which of the following objects is in this image? | A) umbrella | B) backpack | C) cup | D) vase | Answer with the letter and the object name.,A,A,0,1,2,0.53329998254776,0.0,0,FP_Scattered
+26,Positive,Which of the following objects is in this image? | A) cardboard box | B) chair | C) dog | D) pot | Answer with the letter and the object name.,B,B,0,4,3,0.6431000232696533,0.0,0,FP_Scattered
+27,Positive,Which of the following objects is in this image? | A) cardboard box | B) backpack | C) boots | D) bike | Answer with the letter and the object name.,C,C,0,1,9,0.486299991607666,0.0,0,FP_Scattered
+28,Positive,Which of the following objects is in this image? | A) remote control | B) tree | C) vase | D) backpack | Answer with the letter and the object name.,B,B,0,2,4,0.5450999736785889,0.0,0,FP_Scattered
+29,Positive,Which of the following objects is in this image? | A) bike | B) mouse | C) hairdryer | D) controller | Answer with the letter and the object name.,C,C,0,5,6,0.36079999804496765,0.0,0,FP_Scattered
+30,Positive,Which of the following objects is in this image? | A) cabinet | B) backpack | C) bike | D) hoodie | Answer with the letter and the object name.,D,D,0,1,7,0.5881999731063843,0.0,0,FP_Scattered

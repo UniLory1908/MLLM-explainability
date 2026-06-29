@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}V6 Cases{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Representative Cases</h1>
+    <p>Curated case gallery for qualitative dashboard inspection.</p>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+{% if cases.warnings %}<section class="warning"><ul>{% for warning in cases.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>{% endif %}
+
+{% macro case_table(rows) %}
+<div class="table-scroll">
+  <table class="case-table analysis-table query-table">
+    <thead><tr><th>Reason</th><th>Image</th><th>Prompt</th><th>score</th><th>visual</th><th>centroid</th><th>entropy</th><th>top-5</th><th>bbox</th><th>links</th><th>response</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.reason if row.reason is defined else row.selection_reason }}</td>
+        <td>{{ row.image_id }}</td>
+        <td><code>{{ row.prompt_label }}</code></td>
+        <td>{{ cases.fmt(row.selection_score) if row.selection_score is defined else "" }}</td>
+        <td>{{ cases.fmt(row.visual_change) }}</td>
+        <td>{{ cases.fmt(row.mean_centroid_shift_vs_baseline) }}</td>
+        <td>{{ cases.fmt(row.get("entropy_norm_mean", row.get("entropy_mean_delta_vs_baseline", ""))) }}</td>
+        <td>{{ cases.fmt(row.get("top_5_mass_mean", row.get("top5_mass_mean_delta_vs_baseline", ""))) }}</td>
+        <td>{{ row.bbox_strict if row.bbox_strict is defined else "" }}/{{ row.bbox_broad if row.bbox_broad is defined else "" }}</td>
+        <td>{% if row.dashboard_case_path %}<a href="{{ row.dashboard_case_path }}">case</a>{% endif %} {% if row.dashboard_compare_path %}<a href="{{ row.dashboard_compare_path }}">compare</a>{% endif %}</td>
+        <td>{{ row.response_preview }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+<section class="panel">
+  <h2>Representative cases</h2>
+  <p class="note">High visual change, high centroid shift, entropy/diffusion increase, concentration increase, bbox-like concentrated/diffuse, and stable cases.</p>
+  {{ case_table(cases.representatives) }}
+</section>
+
+<section class="panel">
+  <h2>Concordant cases</h2>
+  <p class="note">Cases where multiple metrics agree: concentrated across metrics, diffuse across metrics, or spatially shifted across metrics.</p>
+  {{ case_table(cases.concordant_rows) }}
+</section>
+
+<section class="panel">
+  <h2>Discordant cases</h2>
+  <p class="note">Cases where output style or metric families disagree, useful for qualitative stress-testing.</p>
+  {{ case_table(cases.discordant_rows) }}
+</section>
+{% endblock %}

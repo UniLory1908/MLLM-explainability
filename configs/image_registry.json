@@ -2,26 +2,32 @@
   "images": {
     "30213": {
       "label": "kitchen_counter",
+      "obj_main": "refrigerator",
       "note": "Kitchen-like indoor scene with several objects."
     },
     "133645": {
       "label": "bench_boat",
+      "obj_main": "boat",
       "note": "Open outdoor scene with bench and boat."
     },
     "331352": {
       "label": "bathroom_toilet",
+      "obj_main": "toilet",
       "note": "Bathroom scene with toilet as dominant object."
     },
     "393226": {
       "label": "street_traffic",
+      "obj_main": "traffic light",
       "note": "Outdoor street scene with vehicles and people."
     },
     "426253": {
       "label": "microwave_bottle",
+      "obj_main": "microwave",
       "note": "Simple indoor appliance scene."
     },
     "555009": {
       "label": "desk_monitor",
+      "obj_main": "tv",
       "note": "Indoor workspace-like scene with compact objects."
     }
   }

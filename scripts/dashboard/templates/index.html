@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Cases - TAM Dashboard{% endblock %}
+{% block content %}
+<section class="toolbar">
+  <form method="get">
+    <input name="image" value="{{ image }}" placeholder="filter image or condition">
+    <input type="hidden" name="official" value="0">
+    <label><input type="checkbox" name="official" value="1" {% if official %}checked{% endif %} onchange="this.form.submit()"> official only</label>
+    <button type="submit">Filter</button>
+    <a class="button" href="{{ url_for('index', official=0) }}">Clear search</a>
+    <a class="button" href="{{ url_for('prompt_guide') }}">Prompt guide</a>
+    <a class="button" href="{{ url_for('metrics_guide') }}">Metric guide</a>
+    <a class="button" href="{{ url_for('metrics_rankings') }}">Metrics</a>
+    <a class="button" href="{{ url_for('saved_queries_view') }}">Saved queries</a>
+  </form>
+</section>
+<section class="panel">
+  <h2>Metric coverage</h2>
+  <div class="coverage-grid">
+    <div><strong>cases</strong><br>{{ coverage.cases }}</div>
+    <div><strong>maps</strong><br>{{ coverage.maps }}</div>
+    <div><strong>map_metrics</strong><br>{{ coverage.map_metrics }}</div>
+    <div><strong>coverage</strong><br>{{ "%.2f"|format(coverage.map_metrics_coverage * 100) }}%</div>
+    <div><strong>regions</strong><br>{{ coverage.regions }}</div>
+    <div><strong>layer_scanpaths</strong><br>{{ coverage.layer_scanpaths }}</div>
+    <div><strong>word_scanpaths</strong><br>{{ coverage.word_scanpaths }}</div>
+    <div><strong>cache</strong><br>{{ coverage.cache_manifest }}</div>
+  </div>
+</section>
+{% if selected_case_studies.all %}
+<section class="panel">
+  <h2>Selected Case Studies &mdash; qualitative review</h2>
+  <p class="note">Report-ready Batch 3 cases for qualitative dashboard inspection. Scores are exploratory proxies; use these links for baseline-vs-prompt review.</p>
+  <h3>Recommended first review</h3>
+  <div class="case-study-links">
+  {% for study in selected_case_studies.first_review %}
+    <a class="button" href="{{ study.dashboard_case_path }}">{{ study.case_study_id }} {{ study.image_id }} / {{ study.prompt_label }}</a>
+  {% endfor %}
+  </div>
+  <div class="table-scroll">
+    <table class="case-table case-study-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Image</th>
+          <th>Prompt</th>
+          <th>Pattern</th>
+          <th>Quadrant</th>
+          <th>Cluster</th>
+          <th>Outlier</th>
+          <th>Links</th>
+          <th>Cosa controllare</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for study in selected_case_studies.all %}
+        <tr class="{% if study.case_study_id in ['CS09', 'CS07', 'CS08', 'CS02', 'CS03', 'CS05'] %}priority-row{% endif %}">
+          <td>{{ study.case_study_id }}</td>
+          <td>{{ study.image_id }}</td>
+          <td>{{ study.prompt_label }}</td>
+          <td>{{ study.main_pattern }}</td>
+          <td>{{ study.quadrant }}</td>
+          <td>{{ study.cluster_id }}</td>
+          <td>{{ study.is_outlier }}</td>
+          <td>
+            <a href="{{ study.dashboard_case_path }}">case</a>
+            <a href="{{ study.dashboard_matrix_path }}">matrix</a>
+            <a href="{{ study.dashboard_compare_path }}">compare</a>
+          </td>
+          <td>{{ study.recommended_dashboard_action }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+<table class="case-table">
+  <thead>
+    <tr>
+      <th>Image</th><th>Condition</th><th>Words</th><th>Layers</th><th>Status</th><th>Run</th><th>Mean entropy</th><th>Mean secondary ratio</th><th>Mean peak count</th><th>Mean word path</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for case in cases %}
+    {% set summary = case_summaries.get(case.case_id, {}) %}
+    <tr>
+      <td>{{ case.image_stem }}<br><span>{{ case.image_label }}</span></td>
+      <td>{{ case.condition_label }}</td>
+      <td>{{ case.word_count }}</td>
+      <td>{{ case.layer_count }}</td>
+      <td>{{ case.status }}{% if case.used_fix256 %}<br><span>fix256</span>{% endif %}</td>
+      <td>{{ case.run_name }}</td>
+      <td>{{ fmt_metric(summary.mean_entropy) }}</td>
+      <td>{{ fmt_metric(summary.mean_secondary_ratio) }}</td>
+      <td>{{ fmt_metric(summary.mean_peak_count) }}</td>
+      <td>{{ fmt_metric(summary.mean_word_path_length) }}</td>
+      <td>
+        <a href="{{ url_for('case_view', case_id=case.case_id) }}">open</a>
+        <a href="{{ url_for('matrix_view', case_id=case.case_id) }}">matrix</a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<section class="panel">
+  <h2>Quick rankings</h2>
+  <div class="rankings-grid">
+    <div>
+      <h3>Most diffuse cases</h3>
+      <ul>{% for row in rankings.diffuse_cases %}<li><a href="{{ url_for('case_view', case_id=row.case_id) }}">{{ row.image_label }} / {{ row.condition_label }}</a> ({{ fmt_metric(row.score) }})</li>{% endfor %}</ul>
+    </div>
+    <div>
+      <h3>Most multipeak cases</h3>
+      <ul>{% for row in rankings.multipeak_cases %}<li><a href="{{ url_for('case_view', case_id=row.case_id) }}">{{ row.image_label }} / {{ row.condition_label }}</a> ({{ fmt_metric(row.score) }})</li>{% endfor %}</ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

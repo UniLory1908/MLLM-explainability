@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}V6 BBox/Location{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>BBox / Location-Style Outputs</h1>
+    <p>BBox/location-style output is a response-format signal, not proof of correct object localization.</p>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+{% if bbox.warnings %}<section class="warning"><ul>{% for warning in bbox.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>{% endif %}
+
+<section class="analysis-plot-grid-two">
+  <article class="visual-card analysis-plot-card"><h2>BBox count by prompt</h2><img class="analysis-plot" src="{{ url_for('analysis_v6_plot', filename='bbox_count_by_prompt.png') }}" alt="bbox count"></article>
+  <article class="visual-card analysis-plot-card"><h2>Strict bbox heatmap</h2><img class="analysis-plot" src="{{ url_for('analysis_v6_plot', filename='heatmap_bbox_strict.png') }}" alt="bbox heatmap"></article>
+</section>
+
+<section class="panel">
+  <h2>Counts by prompt</h2>
+  <p class="note">Strict/stored count is 139; broad count is 146. Broad includes noisier coordinate/numeric hits.</p>
+  <table class="case-table analysis-table">
+    <thead><tr><th>Prompt</th><th>stored</th><th>strict</th><th>broad</th><th>numeric suspect</th><th>strict rate</th><th>broad rate</th></tr></thead>
+    <tbody>{% for row in bbox.bbox_rows %}<tr><td><code>{{ row.prompt_label }}</code></td><td>{{ row.stored_bbox_count }}</td><td>{{ row.bbox_strict_count }}</td><td>{{ row.bbox_broad_count }}</td><td>{{ row.numeric_only_suspect_count }}</td><td>{{ bbox.rate(row, "bbox_strict_rate") }}</td><td>{{ bbox.rate(row, "bbox_broad_rate") }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Metric comparison</h2>
+  <p class="info-note">BBox-like cases have lower effective area by about -0.017 and about 871 fewer threshold-0.90 regions, while entropy/top5 differences are tiny. Interpret as descriptive association only.</p>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Comparison</th><th>Metric</th><th>true n</th><th>false n</th><th>true mean</th><th>false mean</th><th>difference</th></tr></thead>
+      <tbody>{% for row in bbox.bbox_metric_rows %}<tr><td>{{ row.comparison }}</td><td><code>{{ row.metric }}</code></td><td>{{ row.group_true_n }}</td><td>{{ row.group_false_n }}</td><td>{{ bbox.fmt(row.group_true_mean) }}</td><td>{{ bbox.fmt(row.group_false_mean) }}</td><td>{{ bbox.fmt(row.mean_difference_true_minus_false) }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Discordant cases: bbox-style output but diffuse TAM</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Image</th><th>Prompt</th><th>score</th><th>visual</th><th>centroid</th><th>entropy</th><th>top-5</th><th>links</th><th>response</th></tr></thead>
+      <tbody>
+      {% for row in bbox.discordant_rows %}
+        <tr><td>{{ row.image_id }}</td><td><code>{{ row.prompt_label }}</code></td><td>{{ bbox.fmt(row.selection_score) }}</td><td>{{ bbox.fmt(row.visual_change) }}</td><td>{{ bbox.fmt(row.mean_centroid_shift_vs_baseline) }}</td><td>{{ bbox.fmt(row.entropy_norm_mean) }}</td><td>{{ bbox.fmt(row.top_5_mass_mean) }}</td><td><a href="{{ row.dashboard_case_path }}">case</a> <a href="{{ row.dashboard_compare_path }}">compare</a></td><td>{{ row.response_preview }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Analysis Hub{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Analysis Hub</h1>
+    <p class="note">Horizontal analysis pages and Final report summaries for the TAM dashboard.</p>
+  </div>
+</section>
+
+<section class="analysis-card-grid">
+  <article class="visual-card analysis-nav-card">
+    <h2>V6 Horizontal Analysis</h2>
+    <p>Prompt-associated changes in TAM-derived attribution behavior across 100 COCO images x 8 prompt conditions.</p>
+    <div class="case-study-links">
+      <a class="button" href="{{ url_for('analysis_v6_view') }}">Open overview</a>
+      <a class="button" href="{{ url_for('analysis_v6_findings') }}">Findings</a>
+      <a class="button" href="{{ url_for('analysis_v6_explorer') }}">Explorer</a>
+    </div>
+  </article>
+</section>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Saved Queries - TAM Dashboard{% endblock %}
+{% block content %}
+<section class="case-header">
+  <h1>Saved Queries</h1>
+  <span class="note">Tabular interrogations saved under outputs/analysis/v5_queries.</span>
+</section>
+
+{% if not queries %}
+<section class="panel">
+  <p>No saved queries found.</p>
+</section>
+{% else %}
+<section class="query-layout">
+  <aside class="query-sidebar panel">
+    <h2>Queries</h2>
+    <form method="get" class="query-controls">
+      <input name="query" value="{{ selected.slug if selected else '' }}" placeholder="query slug">
+      <input name="rows" value="{{ row_limit }}" type="number" min="25" max="1000" step="25">
+      <button type="submit">Open</button>
+    </form>
+    <ul class="query-list">
+    {% for query in queries %}
+      <li class="{% if selected and query.slug == selected.slug %}active{% endif %}">
+        <a href="{{ url_for('saved_queries_view', query=query.slug, rows=row_limit) }}">{{ query.title }}</a>
+        <br>
+        <span>{{ query.slug }}</span><br>
+        <span>{{ query.matching_cases if query.matching_cases is not none else "?" }} cases{% if query.matching_images is not none %}, {{ query.matching_images }} images{% endif %}</span>
+      </li>
+    {% endfor %}
+    </ul>
+  </aside>
+
+  <section class="query-main">
+    {% if selected %}
+    <section class="panel">
+      <h2>{{ selected.title }}</h2>
+      <p class="note">{{ selected.slug }}</p>
+      <p class="query-question">{{ selected.question }}</p>
+      <div class="case-study-links">
+        {% if selected.has_csv %}<a class="button" href="{{ url_for('saved_query_download', slug=selected.slug, filename='results.csv') }}">download CSV</a>{% endif %}
+        {% if selected.has_parquet %}<a class="button" href="{{ url_for('saved_query_download', slug=selected.slug, filename='results.parquet') }}">download Parquet</a>{% endif %}
+        <a class="button" href="{{ url_for('saved_query_download', slug=selected.slug, filename='answer.md') }}">download answer</a>
+        <a class="button" href="{{ url_for('saved_query_download', slug=selected.slug, filename='manifest.json') }}">manifest</a>
+      </div>
+      {% if selected.manifest %}
+      <div class="coverage-grid">
+        <div><strong>matching cases</strong><br>{{ selected.manifest.matching_cases if selected.manifest.matching_cases is defined else selected.total_rows }}</div>
+        <div><strong>matching images</strong><br>{{ selected.manifest.matching_images if selected.manifest.matching_images is defined else "n/a" }}</div>
+        <div><strong>shown rows</strong><br>{{ selected.rows|length }} / {{ selected.total_rows }}</div>
+        <div><strong>generated</strong><br><span>{{ selected.manifest.generated_at if selected.manifest.generated_at is defined else "n/a" }}</span></div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Answer</h2>
+      <pre class="query-answer">{{ selected.answer }}</pre>
+    </section>
+
+    <section class="panel">
+      <h2>Results table</h2>
+      <p class="note">Showing up to {{ selected.row_limit }} rows. Use CSV/Parquet downloads for full data.</p>
+      {% if selected.columns %}
+      <div class="table-scroll query-table-wrap">
+        <table class="case-table query-table">
+          <thead>
+            <tr>
+            {% for column in selected.columns %}
+              <th>{{ column }}</th>
+            {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in selected.rows %}
+            <tr>
+            {% for column in selected.columns %}
+              {% set value = row.get(column, "") %}
+              <td>
+                {% if column in ["dashboard_case_url", "dashboard_matrix_url", "dashboard_compare_url", "dashboard_word_url"] and value %}
+                  <a href="{{ value }}">{{ column.replace("dashboard_", "").replace("_url", "") }}</a>
+                {% elif column == "case_id" and value %}
+                  <a href="{{ url_for('case_view', case_id=value) }}">{{ value }}</a>
+                {% else %}
+                  {{ value }}
+                {% endif %}
+              </td>
+            {% endfor %}
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>No results CSV for this query.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </section>
+</section>
+{% endif %}
+{% endblock %}

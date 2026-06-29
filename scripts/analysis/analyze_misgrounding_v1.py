@@ -11,7 +11,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.common.prompt_word_utils import build_word_lookup
+from prompt_word_utils import build_word_lookup
 
 
 CONTENT_STOPWORDS = {
@@ -60,7 +60,8 @@ PROMPT_RISK_PRIOR = {
 
 
 def parse_args() -> argparse.Namespace:
-    # Costruisce una lista di casi candidati da leggere con prudenza.
+    # Questa analisi non misura "misgrounding vero".
+    # Costruisce solo una prima lista di casi candidati da leggere con prudenza.
     parser = argparse.ArgumentParser(
         description="Produce a first misgrounding candidate analysis from prompt sweep outputs and existing analyses.",
     )
@@ -95,7 +96,7 @@ def write_json(payload: dict, path: Path) -> None:
 
 
 def normalize_text(value: str) -> str:
-    # Rimuove differenze banali di spaziatura.
+    # Tolgo solo differenze banali di spaziatura.
     return re.sub(r"\s+", " ", value.strip())
 
 
@@ -104,7 +105,8 @@ def normalize_word(word: str) -> str:
 
 
 def content_words(words: list[str]) -> list[str]:
-    # Vista lessicale semplice della risposta, senza matching semantici opachi.
+    # Per la divergenza della risposta tengo una vista lessicale semplice:
+    # ripulita, leggibile e senza introdurre matching semantici opachi.
     cleaned = []
     for word in words:
         normalized = normalize_word(word)
@@ -117,13 +119,15 @@ def content_words(words: list[str]) -> list[str]:
 
 
 def content_words_from_metadata(metadata: dict) -> list[str]:
-    # Usa parole ricostruite, non pezzi singoli del tokenizer.
+    # Per la divergenza della risposta uso le parole ricostruite,
+    # non i token spezzati dal tokenizer.
     words = build_word_lookup(metadata)
     return content_words([word["word_label"] for word in words.values()])
 
 
 def jaccard_similarity(words_a: list[str], words_b: list[str]) -> float:
-    # Misura la sovrapposizione lessicale tra baseline e prompt.
+    # Uso Jaccard perche' e' una misura facile da spiegare:
+    # quanta parte del contenuto lessicale si sovrappone tra baseline e prompt.
     set_a = set(words_a)
     set_b = set(words_b)
     if not set_a and not set_b:
@@ -146,7 +150,8 @@ def to_int(value: str) -> int:
 
 
 def load_prompt_category_map(project_root: Path) -> dict[tuple[str, str], dict]:
-    # Recupera la categoria del prompt dai JSON presenti nel repo.
+    # Recupero la categoria del prompt dai JSON gia' presenti nel repo.
+    # Se non la trovo, il sistema continua comunque a funzionare.
     prompt_map: dict[tuple[str, str], dict] = {}
     prompt_set_dir = project_root / "prompt_sets"
     if not prompt_set_dir.exists():
@@ -165,14 +170,16 @@ def lookup_prompt_context(prompt_map: dict[tuple[str, str], dict], prompt_id: st
 
 
 def stability_weakness(v4_score: float | None) -> float:
-    # Traduce uno score di stabilita' in una misura semplice di debolezza.
+    # Traduco uno score di stabilita' in una piccola misura di "debolezza".
+    # Se manca del tutto la stabilita', considero il segnale come massimo lato rischio.
     if v4_score is None:
         return 1.0
     return max(0.0, min(1.0, (0.999 - v4_score) / 0.02))
 
 
 def coverage_weakness(valid_match_count: int, coverage_ratio: float) -> float:
-    # Copertura bassa rende piu' fragile l'interpretazione del supporto visivo.
+    # Poca copertura non prova il misgrounding,
+    # ma rende piu' fragile l'idea che il supporto visivo sia davvero solido.
     if valid_match_count <= 0:
         return 1.0
     return max(0.0, min(1.0, 1.0 - coverage_ratio))
@@ -190,7 +197,8 @@ def label_case(
     response_changed: bool,
     candidate_score: float,
 ) -> str:
-    # Label prudenti, con categoria separata per l'evidenza insufficiente.
+    # Le label vogliono essere prudenti.
+    # Se non ho abbastanza evidenza visiva, preferisco dirlo apertamente.
     if valid_match_count == 0:
         return "insufficient_evidence"
     if response_changed and coverage_ratio < 0.35 and candidate_score >= 0.55:
@@ -201,7 +209,9 @@ def label_case(
 
 
 def build_case_rows(run_dir: Path) -> tuple[list[dict], list[dict], dict]:
-    # Combina variazione della risposta e supporto visivo recuperato da v4.
+    # Qui metto insieme i due lati della storia:
+    # - come cambia la risposta
+    # - quanto supporto visivo recupero da v4
     project_root = run_dir.parent.parent.parent.parent
     prompt_map = load_prompt_category_map(project_root)
     manifest = load_json(run_dir / "run_manifest.json")
@@ -228,7 +238,7 @@ def build_case_rows(run_dir: Path) -> tuple[list[dict], list[dict], dict]:
         prompt_response = metadata.get("response_text", "")
         prompt_content = content_words_from_metadata(metadata)
 
-        # Primo segnale: la risposta e' cambiata oppure no.
+        # Primo segnale semplice: la risposta e' cambiata oppure no.
         response_changed = normalize_text(prompt_response) != normalize_text(baseline_response)
         response_length_ratio = len(build_word_lookup(metadata)) / max(1, baseline_available_words)
         content_jaccard = jaccard_similarity(baseline_content, prompt_content)
@@ -242,7 +252,8 @@ def build_case_rows(run_dir: Path) -> tuple[list[dict], list[dict], dict]:
         coverage_gap = coverage_weakness(valid_match_count, coverage_ratio)
         prior = risk_prior(prompt_category)
 
-        # Score finale esplicito, costruito con pesi fissi e leggibili.
+        # Lo score finale e' volutamente esplicito.
+        # Ogni pezzo pesa poco ma in modo leggibile.
         candidate_score = (
             0.35 * (1.0 if response_changed else 0.0)
             + 0.25 * response_divergence_score
@@ -259,7 +270,8 @@ def build_case_rows(run_dir: Path) -> tuple[list[dict], list[dict], dict]:
             candidate_score=candidate_score,
         )
 
-        # Salva sia i componenti dello score sia il risultato finale.
+        # Salvo sia gli ingredienti dello score sia il risultato finale.
+        # In questo modo il report resta verificabile, non una black box.
         case_row = {
             "prompt_id": prompt_id,
             "prompt_label": prompt_label,
@@ -301,7 +313,8 @@ def build_case_rows(run_dir: Path) -> tuple[list[dict], list[dict], dict]:
 
 
 def build_markdown(case_rows: list[dict], manifest: dict, path: Path) -> None:
-    # Report leggibile anche senza aprire i CSV.
+    # Il markdown deve essere leggibile anche da solo,
+    # senza aprire i CSV o ricostruire a mente la formula.
     sufficient = [row for row in case_rows if row["label"] != "insufficient_evidence"]
     insufficient = [row for row in case_rows if row["label"] == "insufficient_evidence"]
 
@@ -384,7 +397,8 @@ def build_markdown(case_rows: list[dict], manifest: dict, path: Path) -> None:
 
 
 def main() -> None:
-    # Analisi offline sugli artifact gia' presenti.
+    # Anche questa analisi e' completamente offline sugli artifact gia' presenti.
+    # Questo la rende economica da rilanciare quando cambiano solo i criteri interpretativi.
     args = parse_args()
     run_dir = Path(args.run_dir).resolve()
     case_rows, summary_rows, manifest = build_case_rows(run_dir)

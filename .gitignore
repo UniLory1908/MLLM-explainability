@@ -16,7 +16,16 @@ data/test2017/
 outputs/**/all_layers_raw/
 outputs/prompt_sensitivity/
 outputs/overnight_runs/
+outputs/dashboard_index/
+outputs/dashboard_cache/
+outputs/statistical_archive/
+outputs/analysis/
+outputs/v3_visualization/
+outputs/**/*.sqlite
 outputs/**/*.npy
 outputs/**/*.npz
+outputs/**/*.parquet
 
 *.log
+*.tmp
+*.bak

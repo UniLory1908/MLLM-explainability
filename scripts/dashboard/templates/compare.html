@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Compare Conditions{% endblock %}
+{% block content %}
+<h1>Condition Comparison</h1>
+<section class="legend">
+  <h2>Comparison Legend</h2>
+  <ul>
+    <li><strong>Heatmap A:</strong> selected word/layer saliency map for condition A.</li>
+    <li><strong>Heatmap B:</strong> selected word/layer saliency map for condition B.</li>
+    <li><strong>Absolute difference:</strong> pixel-wise absolute difference between min-max normalized A and B; brighter means larger difference.</li>
+    <li><strong>Signed difference:</strong> B minus A after min-max normalization; red means B is stronger, blue means A is stronger, near-white means similar.</li>
+    <li><strong>Centroid/region markers:</strong> same overlay convention as the case view.</li>
+  </ul>
+</section>
+<form class="toolbar" method="get">
+  <label>Image id <input name="image_id" value="{{ image_id or '' }}"></label>
+  <button type="submit">Load conditions</button>
+  {% if image_cases %}
+    <label>A
+      <select name="a">
+        {% for case in image_cases %}
+          <option value="{{ case.case_id }}" {% if case.case_id == case_a %}selected{% endif %}>{{ case.condition_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>B
+      <select name="b">
+        {% for case in image_cases %}
+          <option value="{{ case.case_id }}" {% if case.case_id == case_b %}selected{% endif %}>{{ case.condition_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Word <input name="word" type="number" value="{{ word_index }}"></label>
+    <label>Layer <input name="layer" type="number" value="{{ layer_index }}"></label>
+    <label>Region threshold <input name="threshold" type="number" min="0.70" max="0.98" step="0.01" value="{{ request.args.get('threshold', '0.90') }}"></label>
+    <label><input type="checkbox" name="emd" value="1"> EMD</label>
+    <button type="submit">Compare</button>
+  {% endif %}
+</form>
+{% if case_a and case_b %}
+{% set threshold = request.args.get('threshold', '0.90') %}
+<section class="split">
+  <div>
+    <h2>Heatmap A</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_map_route', case_id=case_a, word_index=word_index, layer_index=layer_index, mode='overlay', threshold=threshold) }}" data-caption="Heatmap A / word {{ word_index }} / layer L{{ layer_index }}">
+  </div>
+  <div>
+    <h2>Heatmap B</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_map_route', case_id=case_b, word_index=word_index, layer_index=layer_index, mode='overlay', threshold=threshold) }}" data-caption="Heatmap B / word {{ word_index }} / layer L{{ layer_index }}">
+  </div>
+</section>
+<section>
+  <h2>Difference Map</h2>
+  <div class="split">
+    <div>
+      <h3>Absolute difference</h3>
+      <img class="wide-image modal-image" src="{{ url_for('render_diff_route', case_id_a=case_a, case_id_b=case_b, word_index=word_index, layer_index=layer_index, mode='absolute') }}" data-caption="Absolute difference / word {{ word_index }} / layer L{{ layer_index }}">
+    </div>
+    <div>
+      <h3>Signed difference</h3>
+      <img class="wide-image modal-image" src="{{ url_for('render_diff_route', case_id_a=case_a, case_id_b=case_b, word_index=word_index, layer_index=layer_index, mode='signed') }}" data-caption="Signed difference: red = B stronger, blue = A stronger">
+    </div>
+  </div>
+</section>
+{% endif %}
+{% if pair %}
+<section>
+  <h2>Pairwise Metrics</h2>
+  {% for group_name, rows in grouped_pair.items() %}
+  <div class="panel">
+    <h3>{{ group_name }}</h3>
+    {% if group_name == "Map similarity" %}<p class="note">Higher cosine/SSIM and lower JSD/EMD generally indicate more similar structure and mass placement.</p>{% endif %}
+    {% if group_name == "Hotspot overlap" %}<p class="note">Higher IoU indicates stronger overlap of salient hotspots.</p>{% endif %}
+    {% if group_name == "Spatial shift" %}<p class="note">Higher centroid/shift distances indicate saliency moved spatially between conditions.</p>{% endif %}
+    <table class="metric-table">
+      {% for row in rows %}
+      {% set info = metric_info(row.key) %}
+      <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td>{{ fmt_metric(row.value) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+{% if aggregate %}
+<section>
+  <h2>Aggregate Visual Metrics</h2>
+  {% if aggregate.matched_map_count == 0 %}
+    <p class="warning">No overlapping precomputed map metrics for these conditions yet. Run precompute for both cases to populate aggregate comparisons.</p>
+  {% endif %}
+  <table class="metric-table">
+    <thead><tr><th>Metric</th><th>Mean</th><th>Median</th><th>IQR</th><th>Min</th><th>Max</th></tr></thead>
+    <tbody>
+      <tr><th>Matched maps</th><td colspan="5">{{ aggregate.matched_map_count }}</td></tr>
+      <tr><th>Matched layer scanpaths</th><td colspan="5">{{ aggregate.matched_layer_scanpath_count }}</td></tr>
+      {% for key, summary in aggregate.items() %}
+        {% if summary is mapping %}
+        <tr>
+          <th>{{ metric_info(key.replace('_abs_delta','').replace('_norm','')).label if key.endswith('_abs_delta') else key }}</th>
+          <td>{{ fmt_metric(summary.mean) }}</td>
+          <td>{{ fmt_metric(summary.median) }}</td>
+          <td>{{ fmt_metric(summary.iqr) }}</td>
+          <td>{{ fmt_metric(summary.min) }}</td>
+          <td>{{ fmt_metric(summary.max) }}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}V6 Images{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Image Sensitivity & Structure</h1>
+    <p>Which images are most sensitive/stable, and how COCO structure may modulate prompt effects.</p>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+{% if images.warnings %}<section class="warning"><ul>{% for warning in images.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>{% endif %}
+
+<section class="panel">
+  <h2>Image structure caveat</h2>
+  <p class="info-note">Image-structure analysis is exploratory. It does not prove that object count or object size causes prompt sensitivity.</p>
+  <p>COCO instance annotations were joined for {{ images.structure_count }} images.</p>
+  <a href="{{ url_for('analysis_v6_plot', filename='image_structure_placeholder_or_summary.png') }}"><img class="analysis-plot" src="{{ url_for('analysis_v6_plot', filename='image_structure_placeholder_or_summary.png') }}" alt="Image structure summary"></a>
+</section>
+
+<section class="rankings-grid">
+  <div class="panel">
+    <h2>Most prompt-sensitive images</h2>
+    <table class="case-table analysis-table">
+      <thead><tr><th>Image</th><th>mean visual</th><th>max centroid</th><th>bbox</th><th>link</th></tr></thead>
+      <tbody>{% for row in images.top_sensitive %}<tr><td>{{ row.image_id }}</td><td>{{ images.fmt(row.mean_abs_visual_delta) }}</td><td>{{ images.fmt(row.max_centroid_shift) }}</td><td>{{ row.bbox_count }}</td><td><a href="{{ row.compare_path }}">compare</a></td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Most stable images</h2>
+    <table class="case-table analysis-table">
+      <thead><tr><th>Image</th><th>mean visual</th><th>max centroid</th><th>bbox</th><th>link</th></tr></thead>
+      <tbody>{% for row in images.top_stable %}<tr><td>{{ row.image_id }}</td><td>{{ images.fmt(row.mean_abs_visual_delta) }}</td><td>{{ images.fmt(row.max_centroid_shift) }}</td><td>{{ row.bbox_count }}</td><td><a href="{{ row.compare_path }}">compare</a></td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Prompt sensitivity by object count</h2>
+  <table class="case-table analysis-table">
+    <thead><tr><th>Object-count bin</th><th>images</th><th>mean sensitivity</th><th>median sensitivity</th><th>mean max visual</th><th>mean bbox count</th></tr></thead>
+    <tbody>{% for row in images.object_summary %}<tr><td>{{ row.object_count_bin }}</td><td>{{ row.n_images }}</td><td>{{ images.fmt(row.mean_prompt_sensitivity) }}</td><td>{{ images.fmt(row.median_prompt_sensitivity) }}</td><td>{{ images.fmt(row.mean_max_visual_change) }}</td><td>{{ images.fmt(row.mean_bbox_count) }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Prompt sensitivity by largest object area</h2>
+  <table class="case-table analysis-table">
+    <thead><tr><th>Largest-object bin</th><th>images</th><th>mean sensitivity</th><th>median sensitivity</th><th>mean max visual</th><th>mean bbox count</th></tr></thead>
+    <tbody>{% for row in images.area_summary %}<tr><td>{{ row.largest_object_area_bin }}</td><td>{{ row.n_images }}</td><td>{{ images.fmt(row.mean_prompt_sensitivity) }}</td><td>{{ images.fmt(row.median_prompt_sensitivity) }}</td><td>{{ images.fmt(row.mean_max_visual_change) }}</td><td>{{ images.fmt(row.mean_bbox_count) }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Case-level behavior by object count</h2>
+  <table class="case-table analysis-table">
+    <thead><tr><th>Object-count bin</th><th>cases</th><th>mean visual</th><th>mean regions 0.90</th><th>mean peaks</th><th>bbox strict rate</th><th>bbox broad rate</th></tr></thead>
+    <tbody>{% for row in images.case_object_summary %}<tr><td>{{ row.object_count_bin }}</td><td>{{ row.n_cases }}</td><td>{{ images.fmt(row.mean_visual_change) }}</td><td>{{ images.fmt(row.mean_region_count_thr090) }}</td><td>{{ images.fmt(row.mean_peak_count) }}</td><td>{{ images.fmt(row.bbox_strict_rate) }}</td><td>{{ images.fmt(row.bbox_broad_rate) }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Image sensitivity joined with COCO structure</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Image</th><th>rank</th><th>mean visual</th><th>objects</th><th>categories</th><th>largest area</th><th>total area</th><th>bbox count</th><th>link</th></tr></thead>
+      <tbody>{% for row in images.structure_join_rows %}<tr><td>{{ row.image_id }}</td><td>{{ row.sensitivity_rank }}</td><td>{{ images.fmt(row.mean_abs_visual_delta) }}</td><td>{{ row.object_count }}</td><td>{{ row.category_count }}</td><td>{{ images.fmt(row.largest_object_area_ratio) }}</td><td>{{ images.fmt(row.total_annotated_object_area_ratio) }}</td><td>{{ row.bbox_count }}</td><td><a href="{{ row.compare_link }}">compare</a></td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>COCO structure sample</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Image</th><th>objects</th><th>categories</th><th>largest area</th><th>total area</th><th>person</th><th>animal</th><th>vehicle</th><th>categories</th></tr></thead>
+      <tbody>{% for row in images.structure_rows %}<tr><td>{{ row.image_id }}</td><td>{{ row.object_count }}</td><td>{{ row.category_count }}</td><td>{{ images.fmt(row.largest_object_area_ratio) }}</td><td>{{ images.fmt(row.total_annotated_object_area_ratio) }}</td><td>{{ row.has_person }}</td><td>{{ row.has_animal }}</td><td>{{ row.has_vehicle }}</td><td>{{ row.category_names }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

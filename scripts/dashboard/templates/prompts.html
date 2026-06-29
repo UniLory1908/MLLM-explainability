@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Prompt Guide{% endblock %}
+{% block content %}
+<section class="case-header">
+  <div>
+    <h1>Prompt / Condition Guide</h1>
+    <p class="note">Context page for generation conditions. Prompt text is shown for interpretability context, not as the main analysis target.</p>
+  </div>
+  <a class="button" href="{{ url_for('index') }}">Back to cases</a>
+</section>
+<table class="case-table">
+  <thead>
+    <tr>
+      <th>Condition</th>
+      <th>Family</th>
+      <th>Purpose</th>
+      <th>Full prompt text</th>
+      <th>Mean entropy</th>
+      <th>Mean secondary ratio</th>
+      <th>Mean peak count</th>
+      <th>Mean word path</th>
+      <th>Indexed cases</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for prompt in prompts %}
+    <tr id="{{ prompt.condition_label }}" {% if focus == prompt.condition_label %}class="focused-row"{% endif %}>
+      <td>{{ prompt.condition_label }}</td>
+      <td>{{ prompt.family }}</td>
+      <td>{{ prompt.purpose }}</td>
+      <td class="prewrap">{{ prompt.prompt_text }}</td>
+      <td>{{ fmt_metric(prompt.metric_summary.mean_entropy) }}</td>
+      <td>{{ fmt_metric(prompt.metric_summary.mean_secondary_ratio) }}</td>
+      <td>{{ fmt_metric(prompt.metric_summary.mean_peak_count) }}</td>
+      <td>{{ fmt_metric(prompt.metric_summary.mean_word_path_length) }}</td>
+      <td>{{ prompt.case_count }}</td>
+      <td><a href="{{ url_for('index', image=prompt.condition_label, official=1) }}">filtered cases</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

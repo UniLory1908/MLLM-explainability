@@ -19,6 +19,7 @@
 <section class="panel">
   <h2>Counts by prompt</h2>
   <p class="note">Strict/stored count is 139; broad count is 146. Broad includes noisier coordinate/numeric hits.</p>
+  <p><a class="button" href="{{ url_for('analysis_v6_model_locations') }}">Open parsed model-location index</a></p>
   <table class="case-table analysis-table">
     <thead><tr><th>Prompt</th><th>stored</th><th>strict</th><th>broad</th><th>numeric suspect</th><th>strict rate</th><th>broad rate</th></tr></thead>
     <tbody>{% for row in bbox.bbox_rows %}<tr><td><code>{{ row.prompt_label }}</code></td><td>{{ row.stored_bbox_count }}</td><td>{{ row.bbox_strict_count }}</td><td>{{ row.bbox_broad_count }}</td><td>{{ row.numeric_only_suspect_count }}</td><td>{{ bbox.rate(row, "bbox_strict_rate") }}</td><td>{{ bbox.rate(row, "bbox_broad_rate") }}</td></tr>{% endfor %}</tbody>

@@ -31,11 +31,13 @@ from scripts.dashboard.metric_registry import (
 )
 from scripts.dashboard.pairwise import compute_pair_for_rows
 from scripts.dashboard.rendering import (
+    parse_model_locations,
     render_difference,
     render_final_layer_animation,
     render_final_layer_preview,
     render_map,
     render_matrix_cell,
+    render_model_location_overlay,
     render_scanpath,
 )
 
@@ -232,6 +234,13 @@ def fmt_compact(value, digits: int = 3) -> str:
     if abs(number) >= 1000 and number == int(number):
         return f"{int(number):,}"
     return f"{number:.{digits}f}"
+
+
+def compact_preview(value: str, limit: int = 180) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
 
 
 def read_csv_dicts(path: Path, limit: int | None = None) -> tuple[list[dict[str, str]], list[str], str | None]:
@@ -440,6 +449,7 @@ def v6_nav_items() -> list[dict[str, str]]:
         {"label": "Prompts", "endpoint": "analysis_v6_prompts"},
         {"label": "Images", "endpoint": "analysis_v6_images"},
         {"label": "BBox", "endpoint": "analysis_v6_bbox"},
+        {"label": "Model locations", "endpoint": "analysis_v6_model_locations"},
         {"label": "Cases", "endpoint": "analysis_v6_cases"},
         {"label": "Explorer", "endpoint": "analysis_v6_explorer"},
     ]
@@ -557,6 +567,48 @@ def load_v6_bbox_context() -> dict[str, object]:
         "discordant_rows": discordant,
         "fmt": fmt_compact,
         "rate": rate_value,
+    }
+
+
+def load_model_locations_context(connection) -> dict[str, object]:
+    rows = []
+    prompt_counts: dict[str, int] = {}
+    query = """
+        SELECT c.case_id, c.image_id, c.image_stem, c.image_label, c.prompt_label,
+               o.response_text, o.bbox_style_output_flag, o.coordinate_token_count
+        FROM cases c
+        LEFT JOIN output_diagnostics o ON o.case_id=c.case_id
+        ORDER BY c.image_id, c.prompt_label, c.case_id
+    """
+    for row in connection.execute(query):
+        locations = parse_model_locations(row["response_text"] or "")
+        if not locations:
+            continue
+        first = locations[0]
+        item = {
+            "case_id": row["case_id"],
+            "image_id": row["image_id"],
+            "image_label": row["image_label"],
+            "prompt_label": row["prompt_label"],
+            "location_count": len(locations),
+            "first_kind": first.get("kind", ""),
+            "first_label": first.get("label", ""),
+            "first_raw": first.get("raw", ""),
+            "response_preview": compact_preview(row["response_text"] or "", 180),
+            "bbox_style_output_flag": row["bbox_style_output_flag"],
+            "coordinate_token_count": row["coordinate_token_count"],
+            "dashboard_case_path": f"/case/{row['case_id']}",
+            "dashboard_compare_path": f"/compare?image_id={row['image_id']}",
+            "overlay_path": f"/render/model-location/{row['case_id']}.jpg",
+        }
+        prompt_counts[str(row["prompt_label"])] = prompt_counts.get(str(row["prompt_label"]), 0) + 1
+        rows.append(item)
+    prompt_rows = [{"prompt_label": key, "parseable_count": value} for key, value in sorted(prompt_counts.items())]
+    return {
+        "rows": rows,
+        "prompt_rows": prompt_rows,
+        "total": len(rows),
+        "fmt": fmt_compact,
     }
 
 
@@ -892,6 +944,15 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
     def analysis_v6_bbox():
         return render_template("analysis_v6_bbox.html", bbox=load_v6_bbox_context(), v6_nav=v6_nav_items())
 
+    @app.route("/analysis/v6/model-locations")
+    def analysis_v6_model_locations():
+        connection = conn()
+        return render_template(
+            "analysis_v6_model_locations.html",
+            locations=load_model_locations_context(connection),
+            v6_nav=v6_nav_items(),
+        )
+
     @app.route("/analysis/v6/cases")
     def analysis_v6_cases():
         return render_template("analysis_v6_cases.html", cases=load_v6_cases_context(), v6_nav=v6_nav_items())
@@ -943,6 +1004,7 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
         ).fetchone()
         metrics_count = connection.execute("SELECT COUNT(*) AS n FROM map_metrics WHERE case_id=?", (case_id,)).fetchone()["n"]
         metadata = load_case_metadata(config, case)
+        model_locations = parse_model_locations(metadata.get("response_text", ""))
         selected_word = words[0] if words else None
         selected_word_index = int(request.args.get("word", selected_word["word_index"] if selected_word else 0))
         selected_map_metrics = get_selected_map_metrics(connection, case_id, selected_word_index, selected_layer)
@@ -959,6 +1021,7 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
             metrics=metrics,
             metrics_count=metrics_count,
             metadata=metadata,
+            model_locations=model_locations,
             selected_word=selected_word,
             selected_word_index=selected_word_index,
             selected_map_metrics=selected_map_metrics,
@@ -1149,6 +1212,25 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
             abort(404)
         path = config.project_root / case["image_path"]
         if not path.exists():
+            abort(404)
+        return send_file(path)
+
+    @app.route("/render/model-location/<case_id>.jpg")
+    def render_model_location_route(case_id: str):
+        connection = conn()
+        case = get_case(connection, case_id)
+        if not case:
+            abort(404)
+        metadata = load_case_metadata(config, case)
+        try:
+            path = render_model_location_overlay(
+                connection,
+                config,
+                case_id,
+                metadata.get("response_text", ""),
+                width=request.args.get("width", default=1100, type=int),
+            )
+        except ValueError:
             abort(404)
         return send_file(path)
 

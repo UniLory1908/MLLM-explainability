@@ -80,6 +80,18 @@
     <h2>Original Image</h2>
     <img class="wide-image modal-image" src="{{ url_for('render_original_route', case_id=case.case_id) }}" data-caption="Original image for {{ case.image_label }}">
   </div>
+  {% if model_locations %}
+  <div class="visual-card">
+    <h2>Model-described bbox / point</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_model_location_route', case_id=case.case_id) }}" data-caption="Model-described bbox and point for {{ case.image_label }}">
+    <p class="note">Red/colored boxes are parsed from the generated response. The dot marks the bbox center, or the generated point when only one coordinate pair is present. Green boxes are simple label-matched COCO GT; cyan boxes are reference COCO GT when no label match is found.</p>
+    <ol class="compact-list">
+      {% for location in model_locations[:6] %}
+        <li><code>{{ location.kind }}</code> {{ location.label }} <span class="muted">{{ location.raw }}</span></li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
   <div class="visual-card">
     <h2>Final-layer TAM animation over generated words</h2>
     <img class="wide-image modal-image" src="{{ url_for('render_final_animation_route', case_id=case.case_id) }}" data-caption="Final-layer TAM animation over generated words">

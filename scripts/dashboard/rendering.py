@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sqlite3
+from functools import lru_cache
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -13,6 +15,13 @@ from scripts.dashboard.cache import cache_path, get_cached, make_cache_key, put_
 from scripts.dashboard.config import DashboardConfig, resolve_project_path
 from scripts.dashboard.data_access import get_map_row, load_word_layer_map, row_paths
 from scripts.dashboard.metrics import extract_regions, minmax, prob, weighted_centroid
+
+
+PAIR_RE = re.compile(r"\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)")
+BOX_LIST_RE = re.compile(
+    r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*"
+    r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]"
+)
 
 
 def font(size: int = 16):
@@ -53,6 +62,220 @@ def compact_text(value: str, limit: int = 120) -> str:
     if len(cleaned) <= limit:
         return cleaned
     return cleaned[: max(0, limit - 3)].rstrip() + "..."
+
+
+def parse_model_locations(response_text: str) -> list[dict[str, object]]:
+    """Extract coordinate-like locations from model text without treating plain "box" as a bbox."""
+    text = str(response_text or "")
+    locations: list[dict[str, object]] = []
+    used_spans: list[tuple[int, int]] = []
+
+    for match in BOX_LIST_RE.finditer(text):
+        x0, y0, x1, y1 = (float(value) for value in match.groups())
+        label = text[max(0, match.start() - 80) : match.start()].strip(" .,:;\n\t")
+        label = re.sub(r".*?(?:^|\s)(?:a|an|the|there is|visible details in image)\s+", "", label, flags=re.IGNORECASE).strip()
+        locations.append({"kind": "bbox", "label": label or "model bbox", "coords": (x0, y0, x1, y1), "raw": match.group(0)})
+        used_spans.append(match.span())
+
+    pairs = list(PAIR_RE.finditer(text))
+    idx = 0
+    while idx < len(pairs):
+        first = pairs[idx]
+        if any(start <= first.start() < end for start, end in used_spans):
+            idx += 1
+            continue
+        if idx + 1 < len(pairs):
+            second = pairs[idx + 1]
+            between = text[first.end() : second.start()]
+            if len(between) <= 12 and re.fullmatch(r"\s*,?\s*", between):
+                x0, y0 = (float(value) for value in first.groups())
+                x1, y1 = (float(value) for value in second.groups())
+                label = text[max(0, first.start() - 80) : first.start()].strip(" .,:;\n\t")
+                label = re.sub(r".*?(?:^|\s)(?:a|an|the|there is)\s+", "", label, flags=re.IGNORECASE).strip()
+                locations.append(
+                    {
+                        "kind": "bbox",
+                        "label": label or "model bbox",
+                        "coords": (x0, y0, x1, y1),
+                        "raw": f"{first.group(0)},{second.group(0)}",
+                    }
+                )
+                idx += 2
+                continue
+        x, y = (float(value) for value in first.groups())
+        label = text[max(0, first.start() - 80) : first.start()].strip(" .,:;\n\t") or "model point"
+        locations.append({"kind": "point", "label": label, "coords": (x, y), "raw": first.group(0)})
+        idx += 1
+    return locations
+
+
+@lru_cache(maxsize=1)
+def load_coco_instances(annotation_path: str) -> dict[str, object]:
+    path = Path(annotation_path)
+    if not path.exists():
+        return {"categories": {}, "annotations_by_image": {}}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    categories = {int(item["id"]): str(item["name"]) for item in payload.get("categories", [])}
+    annotations_by_image: dict[int, list[dict[str, object]]] = {}
+    for ann in payload.get("annotations", []):
+        if "image_id" not in ann or "bbox" not in ann:
+            continue
+        image_id = int(ann["image_id"])
+        category = categories.get(int(ann.get("category_id", -1)), "unknown")
+        x, y, w, h = [float(v) for v in ann["bbox"]]
+        annotations_by_image.setdefault(image_id, []).append(
+            {
+                "category": category,
+                "bbox_xywh": (x, y, w, h),
+                "bbox_xyxy": (x, y, x + w, y + h),
+                "area": float(ann.get("area") or w * h),
+            }
+        )
+    return {"categories": categories, "annotations_by_image": annotations_by_image}
+
+
+def _label_tokens(label: str) -> set[str]:
+    stop = {"a", "an", "the", "there", "is", "visible", "details", "in", "image", "red", "blue", "white", "black", "small", "large"}
+    tokens = {token for token in re.findall(r"[a-z0-9]+", label.lower()) if token not in stop}
+    aliases = {
+        "man": "person",
+        "woman": "person",
+        "boy": "person",
+        "girl": "person",
+        "people": "person",
+        "motorbike": "motorcycle",
+        "bike": "bicycle",
+    }
+    return {aliases.get(token, token) for token in tokens}
+
+
+def matching_coco_annotations(annotation_path: Path, image_id: int | None, locations: list[dict[str, object]]) -> tuple[list[dict[str, object]], bool]:
+    if image_id is None:
+        return [], False
+    data = load_coco_instances(str(annotation_path))
+    by_image = data.get("annotations_by_image", {})
+    anns = list(by_image.get(int(image_id), [])) if isinstance(by_image, dict) else []
+    if not anns:
+        return [], False
+    location_tokens = set()
+    for location in locations:
+        location_tokens |= _label_tokens(str(location.get("label") or ""))
+    matched = []
+    for ann in anns:
+        category = str(ann.get("category") or "")
+        cat_tokens = _label_tokens(category)
+        if cat_tokens.intersection(location_tokens):
+            matched.append(ann)
+    if matched:
+        return sorted(matched, key=lambda ann: float(ann.get("area") or 0), reverse=True)[:12], True
+    return sorted(anns, key=lambda ann: float(ann.get("area") or 0), reverse=True)[:8], False
+
+
+def _scale_model_coordinate(value: float, image_size: int) -> float:
+    if 0.0 <= value <= 1.0:
+        return value * max(image_size - 1, 1)
+    if 0.0 <= value <= 1000.0:
+        return value / 1000.0 * max(image_size - 1, 1)
+    return value
+
+
+def _clip(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _scaled_bbox(coords: tuple[float, float, float, float], width: int, height: int) -> tuple[float, float, float, float]:
+    x0, y0, x1, y1 = coords
+    sx0 = _scale_model_coordinate(x0, width)
+    sy0 = _scale_model_coordinate(y0, height)
+    sx1 = _scale_model_coordinate(x1, width)
+    sy1 = _scale_model_coordinate(y1, height)
+    left, right = sorted((_clip(sx0, 0, width - 1), _clip(sx1, 0, width - 1)))
+    top, bottom = sorted((_clip(sy0, 0, height - 1), _clip(sy1, 0, height - 1)))
+    return left, top, right, bottom
+
+
+def _scale_coco_bbox(coords: tuple[float, float, float, float], original_size: tuple[int, int], rendered_size: tuple[int, int]) -> tuple[float, float, float, float]:
+    original_w, original_h = original_size
+    rendered_w, rendered_h = rendered_size
+    x0, y0, x1, y1 = coords
+    return (
+        x0 * rendered_w / max(original_w, 1),
+        y0 * rendered_h / max(original_h, 1),
+        x1 * rendered_w / max(original_w, 1),
+        y1 * rendered_h / max(original_h, 1),
+    )
+
+
+def render_model_location_overlay(
+    conn: sqlite3.Connection,
+    config: DashboardConfig,
+    case_id: str,
+    response_text: str,
+    width: int = 1100,
+    draw_coco_gt: bool = True,
+) -> Path:
+    base = original_image(conn, config, case_id)
+    if base is None:
+        raise ValueError("Original image missing")
+    locations = parse_model_locations(response_text)
+    case = conn.execute("SELECT image_id FROM cases WHERE case_id=?", (case_id,)).fetchone()
+    image_id = int(case["image_id"]) if case and case["image_id"] is not None else None
+    annotation_path = config.project_root / "data" / "annotations" / "instances_val2017.json"
+    gt_annotations, gt_matched = matching_coco_annotations(annotation_path, image_id, locations) if draw_coco_gt else ([], False)
+    params = {"case_id": case_id, "width": width, "response_text": response_text, "draw_coco_gt": draw_coco_gt}
+    key = make_cache_key("model_location", params, json.dumps(params, sort_keys=True), config.cache_version)
+    cached = get_cached(conn, config, key)
+    if cached:
+        return cached
+
+    original_size = base.size
+    image = base.copy()
+    if width and image.width != width:
+        height = max(1, int(image.height * width / image.width))
+        image = image.resize((width, height), Image.Resampling.LANCZOS)
+    draw = ImageDraw.Draw(image)
+    title_font = font(20)
+    label_font = font(15)
+    colors = [(255, 48, 48), (0, 176, 255), (255, 214, 0), (0, 210, 130), (230, 70, 255)]
+
+    for ann in gt_annotations:
+        x0, y0, x1, y1 = _scale_coco_bbox(ann["bbox_xyxy"], original_size, image.size)  # type: ignore[arg-type]
+        gt_color = (20, 210, 80) if gt_matched else (40, 200, 220)
+        draw.rectangle((x0, y0, x1, y1), outline=gt_color, width=3)
+        draw.text((x0 + 5, max(82, y0 + 5)), f"GT {ann['category']}", fill=gt_color, font=label_font, stroke_width=2, stroke_fill=(0, 0, 0))
+
+    for idx, location in enumerate(locations[:12], start=1):
+        color = colors[(idx - 1) % len(colors)]
+        label = compact_text(str(location.get("label") or f"location {idx}"), 42)
+        if location["kind"] == "bbox":
+            x0, y0, x1, y1 = _scaled_bbox(location["coords"], image.width, image.height)  # type: ignore[arg-type]
+            draw.rectangle((x0, y0, x1, y1), outline=color, width=5)
+            cx = (x0 + x1) / 2.0
+            cy = (y0 + y1) / 2.0
+            r = 8
+            draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=color, outline=(0, 0, 0), width=2)
+            draw.text((x0 + 6, max(4, y0 + 6)), f"{idx}. {label}", fill=color, font=label_font, stroke_width=2, stroke_fill=(0, 0, 0))
+        else:
+            x, y = location["coords"]  # type: ignore[misc]
+            sx = _clip(_scale_model_coordinate(float(x), image.width), 0, image.width - 1)
+            sy = _clip(_scale_model_coordinate(float(y), image.height), 0, image.height - 1)
+            r = 10
+            draw.ellipse((sx - r, sy - r, sx + r, sy + r), fill=color, outline=(0, 0, 0), width=2)
+            draw.text((sx + 12, sy + 6), f"{idx}. {label}", fill=color, font=label_font, stroke_width=2, stroke_fill=(0, 0, 0))
+
+    if not locations:
+        draw_caption_box(image, ["No parseable model coordinates", "Plain words such as 'box' are not drawn as bbox."])
+    else:
+        draw.rectangle((12, 12, min(image.width - 12, 610), 74), fill=(255, 255, 255), outline=(0, 0, 0), width=2)
+        draw.text((24, 22), "Model-described bbox / point", fill=(0, 0, 0), font=title_font)
+        gt_text = "green=matched COCO GT" if gt_matched else ("cyan=COCO GT reference" if gt_annotations else "COCO GT unavailable")
+        draw.text((24, 48), f"red/colored=model; dot=center/point; {gt_text}.", fill=(0, 0, 0), font=label_font)
+
+    out = cache_path(config, key, ".jpg")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    image.save(out, quality=92)
+    put_cached(conn, config, key, out, "model_location", params, [], json.dumps(params, sort_keys=True))
+    return out
 
 
 def colorize_gray(

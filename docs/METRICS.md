@@ -233,6 +233,17 @@ Metric families used in v6:
 | BBox/location format | Stored bbox flag, strict/broad bbox-style output flags and coordinate-token indicators. |
 | Proxy diagnostic scores | Weak grounding, prompt-dominated, unstable explanation and multipeak ambiguity scores. |
 
+Strict bbox/location-style counts and parseable-coordinate counts are related
+but not identical. Strict/broad flags come from output diagnostics and regex /
+token heuristics over generated responses; the current strict count is 139 out
+of 800. Parseable coordinates are counted only when the dashboard parser can
+render a coordinate object: `[x0,y0,x1,y1]`, two nearby pairs
+`(x0,y0),(x1,y1)` as a bbox, or one pair `(x,y)` as a point. The current
+parseable total is 102 out of 800: `order_disruption_stress` 72,
+`colleague_obj_detection_hard` 28 and `misleading_wrong_subject` 2. The report
+uses `object_detection_hard` as an alias for `colleague_obj_detection_hard`.
+Neither count is a localization-accuracy metric.
+
 Concordant cases are cases where multiple metric families agree, such as low
 entropy plus high top-5 mass plus low effective area for concentrated
 attribution. Discordant cases are cases where output style or metric families
@@ -247,3 +258,7 @@ The COCO image-structure join uses local annotation metadata such as object
 count, category count, largest object area ratio and broad category flags. It is
 descriptive context for exploratory image-structure analysis, not a
 ground-truth localization evaluation of TAM heatmaps.
+
+COCO boxes shown in model-location overlays are qualitative references selected
+by simple label matching when possible. They are not used to compute IoU, mAP,
+pointing-game, mass-in-mask or grounding correctness in the current analysis.

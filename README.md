@@ -64,6 +64,18 @@ outputs/statistical_archive/final_csv_archive_20260629/
 L'export legge il DB dashboard e le metriche gia' calcolate. Non rilancia
 inferenza Qwen/TAM.
 
+## Final Report
+
+Il report finale sul prompt ablation con TAM, dashboard e analisi orizzontale
+v6 si trova in:
+
+```text
+docs/report/lorenzo/
+```
+
+`CriscuoloCASA/` e `ObjDetection/` contengono una linea separata su Object
+Detection / Custom Dataset.
+
 ## Dashboard
 
 Avvio locale:
@@ -86,8 +98,8 @@ Route principali:
 - `/case/<case_id>/word/<word_index>`: dettaglio parola;
 - `/compare`: confronto tra prompt sulla stessa immagine;
 - `/analysis/v6`: viste v6 dataset-level;
-- `/analysis/v6/findings`, `/prompts`, `/images`, `/bbox`, `/cases`,
-  `/explorer`: viste di sintesi e ispezione.
+- `/analysis/v6/findings`, `/prompts`, `/images`, `/bbox`,
+  `/model-locations`, `/cases`, `/explorer`: viste di sintesi e ispezione.
 
 Il dashboard richiede output locali pesanti non versionati:
 
@@ -134,6 +146,13 @@ causal faithfulness. Le scanpath sono traiettorie derivate dalle attribution
 map, non eye-tracking umano. Gli output bbox/location-style sono trattati come
 segnali di formato della risposta, non come prova che il modello abbia
 localizzato correttamente l'oggetto.
+
+La vista `/analysis/v6/model-locations` distingue i 139 output strict
+bbox/location-style dai 102 casi con coordinate effettivamente parseable
+(`order_disruption_stress`: 72, `colleague_obj_detection_hard`: 28,
+`misleading_wrong_subject`: 2). Il report usa l'alias leggibile
+`object_detection_hard` per la label dati `colleague_obj_detection_hard`.
+Gli overlay con annotazioni COCO sono solo supporto qualitativo.
 
 Sviluppi futuri ragionevoli includono validazione con annotazioni spaziali
 COCO, metriche perturbative piu' forti, negative queries piu' bilanciate,

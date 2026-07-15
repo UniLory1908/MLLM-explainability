@@ -96,6 +96,7 @@ The dashboard exposes v6 through an analysis site tree:
 | `/analysis/v6/prompts` | Prompt fingerprints, prompt behavior matrix and prompt separability. |
 | `/analysis/v6/images` | Image sensitivity, stable/sensitive images and COCO image-structure summaries. |
 | `/analysis/v6/bbox` | BBox/location-style output counts, metric comparison and discordant cases. |
+| `/analysis/v6/model-locations` | Parseable coordinate outputs with qualitative overlays on original images. |
 | `/analysis/v6/cases` | Representative, concordant and discordant case gallery. |
 | `/analysis/v6/explorer` | Filterable case-level data explorer over `case_features_800_v2.csv`. |
 
@@ -114,6 +115,13 @@ Use conservative wording:
 - concentration, diffusion, fragmentation and spatial-shift tendencies;
 - bbox/location-style output as a response-format signal;
 - exploratory image-structure associations.
+
+The final v6 snapshot contains 139 strict bbox/location-style responses and
+102 parseable coordinate responses. Parseable coordinates occur in
+`order_disruption_stress` (72 cases), `colleague_obj_detection_hard` (28 cases)
+and `misleading_wrong_subject` (2 cases). The report may shorten
+`colleague_obj_detection_hard` to `object_detection_hard`, but the exported
+tables keep the full data label.
 
 V6 can support statements such as:
 
@@ -144,6 +152,10 @@ TAM scanpaths are attribution-derived trajectories, not human eye-tracking.
 Diagnostic scores are heuristic proxy rankings, not causal proof. PCA,
 clustering and image-structure associations are exploratory unless followed by
 targeted statistical or causal validation.
+
+The model-location overlay uses parsed response coordinates and optional COCO
+annotation boxes for qualitative inspection. It does not compute IoU, mAP,
+pointing-game, mass-in-mask or any other localization-accuracy benchmark.
 
 ## Reproducibility And Tracking Policy
 

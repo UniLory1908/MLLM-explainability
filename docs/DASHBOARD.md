@@ -77,6 +77,7 @@ CURRENT routes to know:
 | `/analysis/v6/prompts` | Prompt fingerprints, behavior matrix and separability. |
 | `/analysis/v6/images` | Image sensitivity and COCO image-structure summaries. |
 | `/analysis/v6/bbox` | BBox/location-style output summaries and discordant cases. |
+| `/analysis/v6/model-locations` | Parseable model-generated coordinates with qualitative image/COCO overlays. |
 | `/analysis/v6/cases` | Representative, concordant and discordant case gallery. |
 | `/analysis/v6/explorer` | Filterable v6 case-level data explorer. |
 | `/case/<case_id>` | Single case page. |
@@ -96,6 +97,7 @@ data:
 /render/final-preview/<case_id>.jpg
 /render/final-animation/<case_id>.gif
 /render/original/<case_id>.jpg
+/render/model-location/<case_id>.jpg
 /render/scanpath/<mode>/<case_id>.png
 /render/diff/<case_id_a>/<case_id_b>/<word_index>/<layer_index>.png
 /api/case/<case_id>/words
@@ -127,12 +129,24 @@ High-level inputs by page:
 | `/analysis/v6/prompts` | `dashboard_views/questions/prompt_fingerprint.csv`, `dashboard_views/prompt_absolute_profile*.csv`, prompt summary and separability tables. |
 | `/analysis/v6/images` | `tables/image_sensitivity_ranking.csv`, `dashboard_views/questions/image_structure_*.csv`, image-structure claim plot. |
 | `/analysis/v6/bbox` | `tables/bbox_by_prompt.csv`, `tables/bbox_metric_comparison.csv`, concordant/discordant case CSVs and bbox plots. |
+| `/analysis/v6/model-locations` | Indexed responses parsed with `parse_model_locations()` and optional qualitative COCO annotation overlays. |
 | `/analysis/v6/cases` | `tables/representative_cases.csv`, `concordant_cases.csv`, `discordant_cases.csv`. |
 | `/analysis/v6/explorer` | `case_features_800_v2.csv`. |
 
 The analysis pages do not recompute raw TAM maps, do not update the DB/cache and
 do not run model inference. They are intended for Final report inspection of
 prompt-associated changes in TAM-derived attribution behavior.
+
+`/analysis/v6/bbox` and `/analysis/v6/model-locations` answer different
+questions. The bbox page reports strict/broad bbox/location-style response
+flags from output diagnostics: the current strict count is 139 out of 800. The
+model-location page reports responses whose coordinates can actually be parsed
+and rendered: 102 out of 800, distributed as `order_disruption_stress` 72,
+`colleague_obj_detection_hard` 28 and `misleading_wrong_subject` 2. The parser
+recognizes `[x0,y0,x1,y1]`, two nearby pairs `(x0,y0),(x1,y1)` as a bbox and a
+single pair `(x,y)` as a point; ordinary phrases such as `pizza box` are not
+coordinates. COCO boxes are drawn only as qualitative reference overlays, not as
+localization-accuracy metrics.
 
 ## Index / Precompute Flow
 

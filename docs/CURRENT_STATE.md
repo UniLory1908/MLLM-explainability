@@ -71,6 +71,18 @@ The three missing `map_metrics` rows are due to unreadable/filesystem-stalling
 raw `.npy` maps, not missing indexed cases. Re-check the SQLite DB before
 citing exact counts in a report.
 
+The current bbox/location-format snapshot distinguishes two related counts:
+
+- 139 strict bbox/location-style responses out of 800, from
+  `bbox_by_prompt.csv` / output diagnostics flags;
+- 102 parseable coordinate responses out of 800, from the dashboard
+  `parse_model_locations()` parser.
+
+Parseable coordinates are distributed as: `order_disruption_stress` 72,
+`colleague_obj_detection_hard` 28 and `misleading_wrong_subject` 2; all other
+prompt labels have 0. The report may use the alias `object_detection_hard`, but
+the data label remains `colleague_obj_detection_hard`.
+
 ## Current Priority
 
 CURRENT: the dashboard now has implemented scripts for derived metric
@@ -140,6 +152,7 @@ Dashboard analysis routes:
 - `/analysis/v6/prompts`
 - `/analysis/v6/images`
 - `/analysis/v6/bbox`
+- `/analysis/v6/model-locations`
 - `/analysis/v6/cases`
 - `/analysis/v6/explorer`
 
@@ -176,6 +189,8 @@ Historical run inventory is archive-only unless referenced by a current doc:
   duplicated.
 - Do not hide coordinate/bounding-box style output from
   `order_disruption_stress`; it is real model output.
+- Treat model-location overlays as qualitative inspection only. They do not
+  establish localization accuracy, grounding or a COCO IoU/mAP benchmark.
 - Core dashboard metrics are offline descriptive/proxy metrics, not causal
   faithfulness measurements.
 - Derived metric/export scripts operate from existing metadata and DB metrics;

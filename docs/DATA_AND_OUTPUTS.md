@@ -213,6 +213,15 @@ Important files and folders:
 statistical-test outputs, prompt separability outputs, representative cases and
 dataset-level visualizations.
 
+The bbox tables report response-format diagnostics, not localization accuracy.
+The current strict bbox/location-style count is 139 out of 800. The dashboard
+also computes a stricter parseable-coordinate view from indexed responses:
+102 cases can be rendered as model-location overlays, distributed as
+`order_disruption_stress` 72, `colleague_obj_detection_hard` 28 and
+`misleading_wrong_subject` 2. These overlays may draw COCO annotations for
+qualitative reference only; they are not raw outputs, not GT metrics and not a
+replacement for a supervised localization benchmark.
+
 `dashboard_views/` contains compact dashboard-ready summaries and absolute TAM
 profile views. `dashboard_views/questions/` contains the question-driven
 findings layer: question-answer evidence, prompt fingerprints, metric family

@@ -9,7 +9,8 @@ from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    # Analisi offline sugli artifact gia' prodotti dal prompt sweep.
+    # Questo script non ricalcola nulla dal modello.
+    # Legge solo gli artifact gia' prodotti dal prompt sweep.
     parser = argparse.ArgumentParser(
         description="Analyze outputs produced by run_qwen_tam_prompt_sweep.py",
     )
@@ -26,7 +27,8 @@ def load_json(path: Path) -> dict:
 
 
 def normalize_word(word: str) -> str:
-    # Normalizzazione leggera per confronti esplorativi.
+    # Tengo una normalizzazione molto leggera:
+    # basta per confronti esplorativi, senza fingere un allineamento robusto.
     word = word.strip()
     if not word:
         return ""
@@ -37,13 +39,14 @@ def normalize_word(word: str) -> str:
 
 
 def normalize_text(value: str) -> str:
-    # Elimina differenze banali di spaziatura nelle risposte.
+    # Mi interessa eliminare differenze banali di spaziatura quando confronto le risposte.
     compact = re.sub(r"\s+", " ", value.strip())
     return compact
 
 
 def first_heatmap_path(step_records: list[dict]) -> str:
-    # Recupera un path minimale da mostrare nel report.
+    # Recupero un path minimo utile da mostrare nel report.
+    # Se il run e' all-layers provo a prendere il primo disponibile.
     if not step_records:
         return ""
     first = step_records[0]
@@ -57,7 +60,7 @@ def first_heatmap_path(step_records: list[dict]) -> str:
 
 
 def final_heatmap_path(step_records: list[dict]) -> str:
-    # Stessa logica del primo path, ma riferita all'ultimo step.
+    # Stessa logica di sopra, ma riferita all'ultimo step visibile.
     if not step_records:
         return ""
     last = step_records[-1]
@@ -71,7 +74,8 @@ def final_heatmap_path(step_records: list[dict]) -> str:
 
 
 def content_words(word_labels: list[str]) -> list[str]:
-    # Rimuove parole speciali e costruisce una traccia testuale semplice.
+    # Qui pulisco le parole speciali e tengo solo una traccia testuale semplice.
+    # Serve per il confronto leggero tra prompt, non per un allineamento robusto.
     cleaned = []
     for word in word_labels:
         normalized = normalize_word(word)
@@ -81,7 +85,8 @@ def content_words(word_labels: list[str]) -> list[str]:
 
 
 def first_divergence(words_a: list[str], words_b: list[str]) -> tuple[int | None, str, str]:
-    # Individua il primo punto di divergenza senza usare matching complessi.
+    # Questo e' un confronto volutamente conservativo:
+    # guardo dove due sequenze iniziano a divergere, senza fare matching complessi.
     limit = min(len(words_a), len(words_b))
     for idx in range(limit):
         if words_a[idx] != words_b[idx]:
@@ -94,14 +99,15 @@ def first_divergence(words_a: list[str], words_b: list[str]) -> tuple[int | None
 
 
 def distinct_content_signature(words: list[str], top_k: int = 6) -> str:
-    # Costruisce una piccola firma del contenuto generato.
+    # Mi creo una piccola "firma" del contenuto generato per letture rapide nel report.
     counts = Counter(words)
     ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     return ", ".join(word for word, _ in ordered[:top_k])
 
 
 def load_run_records(run_dir: Path) -> tuple[dict, list[dict]]:
-    # Usa il manifest per enumerare i prompt e i metadata per i dettagli.
+    # Il manifest mi dice quali prompt fanno parte del run.
+    # I dettagli veri li recupero dai metadata per-prompt.
     manifest = load_json(run_dir / "run_manifest.json")
     records = []
     for prompt_run in manifest["prompt_runs"]:
@@ -131,7 +137,8 @@ def load_run_records(run_dir: Path) -> tuple[dict, list[dict]]:
 
 
 def build_comparison_rows(records: list[dict]) -> list[dict]:
-    # Usa il primo prompt del run come baseline locale.
+    # Uso il primo prompt del run come baseline locale.
+    # Non e' una verita' assoluta, ma riflette il modo in cui gli sweep sono organizzati ora.
     if not records:
         return []
 
@@ -176,7 +183,8 @@ def write_json(payload: dict, path: Path) -> None:
 
 
 def write_markdown(manifest: dict, comparison_rows: list[dict], path: Path) -> None:
-    # Report compatto, leggibile anche senza aprire i CSV.
+    # Il markdown qui e' pensato per essere leggibile anche senza aprire i CSV.
+    # Voglio un report piccolo ma subito utile.
     lines = [
         "# Prompt Sweep Analysis",
         "",
@@ -229,7 +237,8 @@ def write_markdown(manifest: dict, comparison_rows: list[dict], path: Path) -> N
 
 
 def main() -> None:
-    # Analisi offline sugli artifact salvati.
+    # Tutto il lavoro qui e' "offline" sugli artifact salvati.
+    # Questo rende l'analisi veloce e ripetibile.
     args = parse_args()
     run_dir = Path(args.run_dir).resolve()
     manifest, records = load_run_records(run_dir)

@@ -16,7 +16,7 @@ from analyze_prompt_sweep_v2 import (
     load_records,
     normalized_l1_similarity,
 )
-from scripts.common.prompt_word_utils import canonicalize_word_text, combined_word_heatmap
+from prompt_word_utils import canonicalize_word_text, combined_word_heatmap
 
 
 HARD_STOPWORDS = {
@@ -49,7 +49,8 @@ HARD_STOPWORDS = {
 
 
 def parse_args() -> argparse.Namespace:
-    # La v4 recupera copertura rispetto alla v3 con regole lessicali esplicite.
+    # La v4 prova a recuperare un po' di copertura rispetto alla v3,
+    # ma solo con regole lessicali facili da spiegare.
     parser = argparse.ArgumentParser(
         description="Build an intermediate baseline-vs-prompt heatmap stability analysis with controlled word matching.",
     )
@@ -84,7 +85,7 @@ def write_json(payload: dict, path: Path) -> None:
 
 
 def normalize_word(word: str) -> str:
-    # Normalizzazione di base per i confronti lessicali.
+    # Base minima comune a tutti i confronti lessicali della v4.
     return re.sub(r"[^a-zA-Z0-9]+", "", word.strip().lower())
 
 
@@ -93,7 +94,8 @@ def canonicalize_word(word: str) -> str:
 
 
 def is_lexical_anchor(word: str) -> bool:
-    # Tiene solo parole sufficientemente informative per il matching.
+    # Non tutte le parole sono buoni candidati per il matching.
+    # Tengo solo quelle che hanno abbastanza contenuto lessicale da essere utili.
     normalized = canonicalize_word(word)
     if not normalized:
         return False
@@ -107,7 +109,7 @@ def is_lexical_anchor(word: str) -> bool:
 
 
 def has_heatmap(step: dict) -> bool:
-    # Il matching e' valido solo se la parola ha artifact visivi disponibili.
+    # Il matching della v4 ha senso solo se poi posso davvero confrontare le mappe.
     return any(Path(path).exists() for path in step.get("source_heatmap_paths", []))
 
 
@@ -124,7 +126,9 @@ def find_controlled_match(
     current_steps: dict[int, dict],
     used_current_steps: set[int],
 ) -> tuple[dict | None, str]:
-    # Regola di matching: stessa posizione, finestra locale, match unico altrove.
+    # Questa e' la regola chiave della v4.
+    # Cerco un match piccolo ma difendibile:
+    # prima stessa posizione, poi piccolo spostamento, poi match unico altrove.
     baseline_word = baseline_step.get("word_label", "")
     if not is_lexical_anchor(baseline_word):
         return None, "baseline_word_not_lexical_anchor"
@@ -166,7 +170,8 @@ def find_controlled_match(
 
 
 def compare_prompt_pair_v4(baseline: dict, current: dict) -> tuple[list[dict], dict]:
-    # Anche qui il confronto resta baseline-vs-prompt.
+    # Anche qui resto in baseline-vs-prompt.
+    # La differenza rispetto alla v2 e' che il match non e' piu' puramente posizionale.
     baseline_steps = baseline["word_lookup"]
     current_steps = current["word_lookup"]
     used_current_steps: set[int] = set()
@@ -184,7 +189,8 @@ def compare_prompt_pair_v4(baseline: dict, current: dict) -> tuple[list[dict], d
             exclusion_counts[match_reason] += 1
             continue
 
-        # Ogni parola del prompt corrente puo' essere usata una sola volta.
+        # Ogni step del prompt corrente puo' essere usato una volta sola.
+        # Questo evita match gonfiati artificialmente.
         used_current_steps.add(int(matched_step["word_index"]))
         heatmap_a = combined_word_heatmap(baseline_step, baseline["metadata"]["image_path"])
         heatmap_b = combined_word_heatmap(matched_step, current["metadata"]["image_path"])
@@ -233,7 +239,8 @@ def compare_prompt_pair_v4(baseline: dict, current: dict) -> tuple[list[dict], d
 
 
 def build_comparison_rows(v2_rows: list[dict], v3_rows: list[dict], v4_rows: list[dict]) -> list[dict]:
-    # Allinea le tre letture: v2, v3 e v4.
+    # Qui metto fianco a fianco le tre letture:
+    # v2 larga, v3 stretta, v4 intermedia.
     v2_by_prompt = {row["prompt_b"]: row for row in v2_rows}
     v3_content_by_prompt = {
         row["prompt_b"]: row for row in v3_rows if row["filter_mode"] == "content_match"
@@ -271,7 +278,8 @@ def build_markdown(
     comparison_rows: list[dict],
     output_path: Path,
 ) -> None:
-    # Report comparativo tra v2, v3 e v4.
+    # Il report deve far vedere se la v4 recupera davvero qualcosa di utile,
+    # non solo se produce un numero in piu'.
     ranked_v4 = sorted(
         [row for row in v4_rows if row["aggregate_heatmap_stability_score"] is not None],
         key=lambda row: float(row["aggregate_heatmap_stability_score"]),
@@ -362,7 +370,8 @@ def build_markdown(
 
 
 def main() -> None:
-    # La v4 riusa v2 e v3 e cambia solo la strategia di matching.
+    # La v4 riusa v2 e v3 perche' non voglio duplicare infrastruttura.
+    # Mi interessa migliorare il confronto, non rifare la pipeline.
     args = parse_args()
     run_dir = Path(args.run_dir).resolve()
     manifest, records = load_records(run_dir)

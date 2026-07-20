@@ -1,0 +1,5 @@
+<nav class="analysis-subnav">
+  {% for item in v6_nav %}
+    <a href="{{ url_for(item.endpoint) }}">{{ item.label }}</a>
+  {% endfor %}
+</nav>

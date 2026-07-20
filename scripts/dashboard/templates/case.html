@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}{{ case.condition_label }} - TAM Dashboard{% endblock %}
+{% block content %}
+<section class="case-header">
+  <div>
+    <h1>{{ case.image_label }} / {{ case.condition_label }}</h1>
+    {% if case.condition_label == "order_disruption_stress" %}
+      <span class="badge">grounding-format stress</span>
+      <span class="badge">bbox-style output possible</span>
+    {% endif %}
+    <p class="note">Case: {{ case.case_id }}</p>
+  </div>
+  <div class="actions">
+    <a class="button" href="{{ url_for('matrix_view', case_id=case.case_id) }}">Word x Layer Heatmap Matrix</a>
+    <a class="button" href="{{ url_for('compare_view', image_id=case.image_id, a=case.case_id) }}">Compare</a>
+    <a class="button" href="{{ url_for('prompt_guide', focus=case.condition_label) }}#{{ case.condition_label }}">Prompt details</a>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Condition Metadata</h2>
+  <dl class="meta">
+    <dt>Prompt label</dt><dd>{{ case.prompt_label }}</dd>
+    <dt>Full prompt</dt><dd class="prewrap">{{ metadata.prompt_text or "not available" }}</dd>
+    {% if metadata.system_prompt %}<dt>System prompt</dt><dd class="prewrap">{{ metadata.system_prompt }}</dd>{% endif %}
+    <dt>Full response</dt><dd class="prewrap response-text">{{ metadata.response_text or "not available" }}</dd>
+  </dl>
+  {% if case.condition_label == "order_disruption_stress" %}
+  <p class="info-note">
+    Note: this condition may trigger Qwen2-VL object-reference / bounding-box style output.
+    Coordinate tokens in the response are real model output, not a dashboard formatting bug.
+  </p>
+  {% endif %}
+  <details>
+    <summary>Technical metadata</summary>
+    <dl class="meta">
+      <dt>Model</dt><dd>{{ case.model_name }}</dd>
+      <dt>Run</dt><dd>{{ case.run_name }}</dd>
+      <dt>Metadata</dt><dd>{{ case.metadata_path }}</dd>
+      <dt>Warnings</dt><dd>{{ case.warnings_json }}</dd>
+    </dl>
+  </details>
+</section>
+
+<section class="controls">
+  <label>Selected layer
+    <select id="layer-select" data-case="{{ case.case_id }}">
+      {% for layer in layers %}
+        <option value="{{ layer }}" {% if layer == selected_layer %}selected{% endif %}>L{{ layer }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Region threshold <input id="threshold" type="range" min="0.70" max="0.98" step="0.01" value="0.90"></label>
+  <span id="threshold-value">0.90</span>
+</section>
+<p class="note">
+  Region threshold controls which high-activation pixels are grouped into primary/secondary salient regions.
+  The default 0.90 keeps only the strongest normalized activations. Lower values show broader regions;
+  higher values show smaller, stricter peaks.
+</p>
+
+<section class="legend">
+  <h2>Visual Legend</h2>
+  <ul>
+    <li><span class="swatch heat"></span><strong>Heatmap overlay:</strong> TAM saliency blended over the original image.</li>
+    <li><span class="swatch centroid"></span><strong>Primary/global centroid:</strong> black cross showing the saliency-weighted center of the selected map.</li>
+    <li><span class="swatch primary"></span><strong>Primary region:</strong> yellow marker and bounding box for the strongest salient connected component.</li>
+    <li><span class="swatch secondary"></span><strong>Secondary centroid/region:</strong> white or cyan marker/box for additional salient components.</li>
+    <li><span class="swatch line"></span><strong>Scanpath line:</strong> centroid sequence over generated words or layers.</li>
+    <li><strong>Word/layer labels:</strong> word indexes identify generated-word order; L0...L28 identify model layers.</li>
+  </ul>
+</section>
+
+{% if metrics_count == 0 %}
+<p class="warning">Metrics not precomputed for this case yet. High-resolution raw-map rendering is still available where raw maps exist.</p>
+{% endif %}
+
+<section class="visual-row">
+  <div class="visual-card">
+    <h2>Original Image</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_original_route', case_id=case.case_id) }}" data-caption="Original image for {{ case.image_label }}">
+  </div>
+  {% if model_locations %}
+  <div class="visual-card">
+    <h2>Model-described bbox / point</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_model_location_route', case_id=case.case_id) }}" data-caption="Model-described bbox and point for {{ case.image_label }}">
+    <p class="note">Red/colored boxes are parsed from the generated response. The dot marks the bbox center, or the generated point when only one coordinate pair is present. Green boxes are simple label-matched COCO GT; cyan boxes are reference COCO GT when no label match is found.</p>
+    <ol class="compact-list">
+      {% for location in model_locations[:6] %}
+        <li><code>{{ location.kind }}</code> {{ location.label }} <span class="muted">{{ location.raw }}</span></li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+  <div class="visual-card">
+    <h2>Final-layer TAM animation over generated words</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_final_animation_route', case_id=case.case_id) }}" data-caption="Final-layer TAM animation over generated words">
+    <p class="note">Animated from final-layer raw maps. A sampled contact-sheet preview remains available as a fallback endpoint.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Generated Words</h2>
+  <div class="word-list full-width">
+    {% for word in words %}
+      <button type="button"
+              class="word-button"
+              data-word="{{ word.word_index }}"
+              data-label="{{ word.word_label }}"
+              data-detail-url="{{ url_for('word_view', case_id=case.case_id, word_index=word.word_index) }}">
+        {{ word.word_label }}
+      </button>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="selected-word-panel" class="panel" data-case="{{ case.case_id }}">
+  <div class="case-header compact">
+    <div>
+      <h2>Selected Word: <span id="selected-word-label">{{ selected_word.word_label if selected_word else "none" }}</span></h2>
+      <p class="note">Click a generated word above to update this inline analysis panel.</p>
+    </div>
+    <a id="open-word-detail" class="button" href="{{ url_for('word_view', case_id=case.case_id, word_index=0) }}">Open full word details</a>
+  </div>
+  <div class="three-cards">
+    <div class="visual-card">
+      <h3>Layer-wise scanpath for selected word</h3>
+      <img id="selected-layer-scanpath" class="wide-image modal-image" src="{{ url_for('render_scanpath_route', mode='layer', case_id=case.case_id, word=0) }}" data-caption="Layer-wise scanpath for selected word">
+    </div>
+    <div class="visual-card">
+      <h3>TAM overlay on image</h3>
+      <img id="selected-overlay" class="wide-image modal-image" data-word="0" data-layer="{{ selected_layer }}" src="{{ url_for('render_map_route', case_id=case.case_id, word_index=0, layer_index=selected_layer, mode='overlay', threshold='0.90', norm='global') }}" data-caption="Selected word/layer TAM overlay">
+    </div>
+    <div class="visual-card">
+      <h3>Locally normalized TAM overlay on image</h3>
+      <img id="selected-heatmap" class="wide-image modal-image" data-word="0" data-layer="{{ selected_layer }}" src="{{ url_for('render_map_route', case_id=case.case_id, word_index=0, layer_index=selected_layer, mode='overlay', threshold='0.90', norm='local') }}" data-caption="Locally normalized TAM overlay for selected word/layer">
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Selected map metrics (word <span id="selected-map-word">{{ selected_word_index }}</span>, layer <span id="selected-map-layer">L{{ selected_layer }}</span>)</h2>
+  {% if selected_map_metrics %}
+  <div class="metric-groups">
+    <div class="panel">
+      <h3>Intensity</h3>
+      <p class="note">{{ metric_group_descriptions.intensity }}</p>
+      <table class="metric-table">
+        {% for key in ["energy_sum","energy_mean","max_value","std_value","nonzero_ratio"] %}
+          {% set info = metric_info(key) %}
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="panel">
+      <h3>Concentration / diffusion</h3>
+      <p class="note">{{ metric_group_descriptions.concentration }}</p>
+      <table class="metric-table">
+        {% for key in ["entropy_norm","top_5_mass","effective_area_norm","hoyer_sparsity"] %}
+          {% set info = metric_info(key) %}
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="panel">
+      <h3>Spatial / centroid</h3>
+      <p class="note">{{ metric_group_descriptions.spatial }}</p>
+      <table class="metric-table">
+        {% for key in ["global_centroid_x_norm","global_centroid_y_norm","spread_trace","anisotropy"] %}
+          {% set info = metric_info(key) %}
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="panel">
+      <h3>Hotspot / regions</h3>
+      <p class="note">{{ metric_group_descriptions.hotspot }}</p>
+      <table class="metric-table">
+        {% for key in ["peak_count","secondary_primary_ratio","primary_region_centroid_x_norm","primary_region_centroid_y_norm","secondary_region_centroid_x_norm","secondary_region_centroid_y_norm"] %}
+          {% set info = metric_info(key) %}
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  <details>
+    <summary>Region candidates for selected word/layer</summary>
+    <table class="case-table">
+      <thead><tr><th>Threshold</th><th>Rank</th><th>Mass</th><th>Ratio to primary</th><th>Centroid (norm)</th><th>BBox (norm)</th><th>Area</th><th>Peak</th></tr></thead>
+      <tbody id="region-candidates-body">
+        {% for region in region_rows %}
+          <tr>
+            <td>{{ fmt_metric(region.threshold) }}</td>
+            <td>{{ region.rank }}</td>
+            <td>{{ fmt_metric(region.mass) }}</td>
+            <td>{{ fmt_metric(region.ratio_to_primary) }}</td>
+            <td>{{ fmt_metric(region.centroid_x_norm) }}, {{ fmt_metric(region.centroid_y_norm) }}</td>
+            <td>[{{ fmt_metric(region.bbox_x0_norm) }}, {{ fmt_metric(region.bbox_y0_norm) }}] → [{{ fmt_metric(region.bbox_x1_norm) }}, {{ fmt_metric(region.bbox_y1_norm) }}]</td>
+            <td>{{ region.area }}</td>
+            <td>{{ fmt_metric(region.peak_value) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% else %}
+    <p class="warning">Metrics not precomputed for this selected word/layer yet.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Selected word layer-wise metrics</h2>
+  <p class="note">{{ metric_group_descriptions.layer_scanpath }}</p>
+  {% if layer_scan_metrics %}
+  <table class="metric-table">
+    {% for key in ["layer_path_length","layer_mean_step","layer_max_jump","layer_net_displacement","layer_tortuosity","layer_large_jump_count","layer_bbox_area","adjacent_layer_cosine_mean","adjacent_layer_ssim_mean","adjacent_layer_jsd_mean","early_late_centroid_shift","peak_count_mean","secondary_primary_ratio_max","multipeak_layer_ratio"] %}
+      {% set info = metric_info(key) %}
+      <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-layer-metric="{{ key }}">{{ fmt_metric(layer_scan_metrics[key]) }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}
+    <p class="warning">Layer-wise scanpath metrics not precomputed for this word yet.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Case summary metrics</h2>
+  {% if metrics_count == 0 %}
+    <p class="warning">Metrics not precomputed for this case yet.</p>
+  {% else %}
+  <table class="metric-table">
+    <tr><th>Mean entropy</th><td>{{ fmt_metric(case_summary.mean_entropy) }}</td></tr>
+    <tr><th>Median-like concentration proxy (mean top_5_mass)</th><td>{{ fmt_metric(case_summary.mean_top5_mass) }}</td></tr>
+    <tr><th>Mean effective area norm</th><td>{{ fmt_metric(case_summary.mean_effective_area_norm) }}</td></tr>
+    <tr><th>Mean peak count</th><td>{{ fmt_metric(case_summary.mean_peak_count) }}</td></tr>
+    <tr><th>Max peak count</th><td>{{ fmt_metric(case_summary.max_peak_count) }}</td></tr>
+    <tr><th>Mean secondary ratio</th><td>{{ fmt_metric(case_summary.mean_secondary_ratio) }}</td></tr>
+    <tr><th>Max secondary ratio</th><td>{{ fmt_metric(case_summary.max_secondary_ratio) }}</td></tr>
+    <tr><th>Mean spread trace</th><td>{{ fmt_metric(case_summary.mean_spread_trace) }}</td></tr>
+    <tr><th>Multipeak ratio</th><td>{{ fmt_metric(case_summary.multipeak_ratio) }}</td></tr>
+    <tr><th>Average word path length</th><td>{{ fmt_metric(case_summary.avg_word_path_length) }}</td></tr>
+    <tr><th>Max word jump</th><td>{{ fmt_metric(case_summary.max_word_jump) }}</td></tr>
+  </table>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Metric highlights</h2>
+  <ul>
+    {% if highlights.most_diffuse %}<li>Most diffuse map: word {{ highlights.most_diffuse.word_index }}, layer L{{ highlights.most_diffuse.layer_index }}, entropy {{ fmt_metric(highlights.most_diffuse.value) }}.</li>{% endif %}
+    {% if highlights.most_concentrated %}<li>Most concentrated map: word {{ highlights.most_concentrated.word_index }}, layer L{{ highlights.most_concentrated.layer_index }}, top_5_mass {{ fmt_metric(highlights.most_concentrated.value) }}.</li>{% endif %}
+    {% if highlights.strongest_multipeak %}<li>Strongest multipeak map: word {{ highlights.strongest_multipeak.word_index }}, layer L{{ highlights.strongest_multipeak.layer_index }}, secondary/primary {{ fmt_metric(highlights.strongest_multipeak.value) }}.</li>{% endif %}
+    {% if highlights.largest_peak_count %}<li>Largest peak_count: word {{ highlights.largest_peak_count.word_index }}, layer L{{ highlights.largest_peak_count.layer_index }}, peaks {{ fmt_metric(highlights.largest_peak_count.value) }}.</li>{% endif %}
+    {% if highlights.largest_layer_jump %}<li>Largest layer max jump: word {{ highlights.largest_layer_jump.word_index }}, value {{ fmt_metric(highlights.largest_layer_jump.value) }}.</li>{% endif %}
+    {% if highlights.largest_word_jump %}<li>Largest word max jump: layer L{{ highlights.largest_word_jump.layer_index }}, value {{ fmt_metric(highlights.largest_word_jump.value) }}.</li>{% endif %}
+  </ul>
+</section>
+{% endblock %}

@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import torch
 from pycocotools.coco import COCO
 from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
 
@@ -28,7 +29,7 @@ from demo import (  # noqa: E402
 )
 from qwen_utils import process_vision_info  # noqa: E402
 from tam import TAM  # noqa: E402
-from scripts.common.prompt_word_utils import (  # noqa: E402
+from prompt_word_utils import (  # noqa: E402
     build_word_groups,
     estimate_heatmap_rgb,
     load_saliency_map,
@@ -104,16 +105,54 @@ def parse_layers(raw_value: str | None) -> list[int] | None:
     return layers or None
 
 
-def build_messages(image_path: str, prompt_text: str) -> list[dict]:
+def resolve_torch_dtype(raw_value: str):
+    # Tengo la scelta esplicita da CLI: su GPU useremo float16 nei test,
+    # mentre "auto" preserva il comportamento precedente.
+    if raw_value == "auto":
+        return "auto"
+    mapping = {
+        "float16": torch.float16,
+        "float32": torch.float32,
+        "bfloat16": torch.bfloat16,
+    }
+    return mapping[raw_value]
+
+
+def resolve_device_map(raw_value: str) -> str:
+    if raw_value == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA requested, but torch.cuda.is_available() is False.")
+    if raw_value == "auto" and not torch.cuda.is_available():
+        print("[WARN] --device auto requested but CUDA is not available; using CPU.")
+        return "cpu"
+    return raw_value
+
+
+def first_model_device(model) -> str:
+    try:
+        return str(next(model.parameters()).device)
+    except StopIteration:
+        return str(getattr(model, "device", "unknown"))
+
+
+def build_messages(image_path: str, prompt_text: str, system_prompt: str | None = None) -> list[dict]:
     # Per ogni prompt ricostruisco da zero il messaggio multimodale.
     # Questo tiene isolati i run e rende il confronto cross-prompt pulito.
-    return [{
+    messages = []
+    if system_prompt:
+        messages.append({
+            "role": "system",
+            "content": [
+                {"type": "text", "text": system_prompt},
+            ],
+        })
+    messages.append({
         "role": "user",
         "content": [
             {"type": "image", "image": image_path},
             {"type": "text", "text": prompt_text},
         ],
-    }]
+    })
+    return messages
 
 
 def resolve_image(args: argparse.Namespace) -> tuple[str, int | None]:
@@ -154,6 +193,10 @@ def normalize_prompt_entry(entry: object, index: int) -> dict:
         "id": prompt_id,
         "label": label,
         "prompt": prompt_text,
+        "system_prompt": str(entry.get("system_prompt", "")).strip() if isinstance(entry, dict) else "",
+        "do_sample": bool(entry.get("do_sample", False)) if isinstance(entry, dict) else False,
+        "temperature": entry.get("temperature") if isinstance(entry, dict) else None,
+        "top_p": entry.get("top_p") if isinstance(entry, dict) else None,
     }
 
 
@@ -320,6 +363,77 @@ def save_raw_tam_map(
     return str(raw_map_path), original_shape, resized_shape
 
 
+def id2idx_local(input_ids: list[int], target_id: int | list[int], return_last: bool = False) -> int:
+    if isinstance(target_id, list):
+        n = len(target_id)
+        matches = [idx for idx in range(len(input_ids) - n + 1) if input_ids[idx : idx + n] == target_id]
+        if not matches:
+            return -1
+        idx = matches[-1]
+        return idx + n - 1 if return_last else idx
+    try:
+        return input_ids.index(target_id)
+    except ValueError:
+        return -1
+
+
+def prompt_token_count_for_tam(tokens: list[int], processor, special_ids: dict) -> int:
+    prompt_start = id2idx_local(tokens, special_ids["prompt_id"][0], True)
+    prompt_end = id2idx_local(tokens, special_ids["prompt_id"][1])
+    prompt_text = processor.batch_decode(
+        [tokens[prompt_start + 1 : prompt_end]],
+        skip_special_tokens=False,
+        clean_up_tokenization_spaces=False,
+    )[0]
+    return len(processor.tokenizer.tokenize(prompt_text))
+
+
+def run_tam_for_generated_step(
+    tokens: list[int],
+    vision_shape: tuple[int, int],
+    logits,
+    special_ids: dict,
+    image_inputs,
+    processor,
+    save_path: Path,
+    step_idx: int,
+    img_scores_list: list,
+) -> np.ndarray:
+    if step_idx != 0:
+        return TAM(
+            tokens,
+            vision_shape,
+            logits,
+            special_ids,
+            image_inputs,
+            processor,
+            str(save_path),
+            step_idx,
+            img_scores_list,
+            False,
+        )
+
+    # TAM target_token=0 saves the first generated token JPG but returns the
+    # first prompt-token map. Keep TAM's warm-up loop and return the last
+    # iteration, which is the first generated token.
+    prompt_count = prompt_token_count_for_tam(tokens, processor, special_ids)
+    raw_map = None
+    for prompt_token_idx in range(prompt_count + 1):
+        raw_map = TAM(
+            tokens,
+            vision_shape,
+            logits,
+            special_ids,
+            image_inputs,
+            processor,
+            str(save_path) if prompt_token_idx == prompt_count else "",
+            [0, prompt_token_idx],
+            img_scores_list,
+            False,
+        )
+    return raw_map
+
+
 def build_step_hotspots_and_scanpath(
     step_records: list[dict],
     image_path: str,
@@ -448,6 +562,8 @@ def run_single_prompt(
     max_new_tokens: int,
     grid_cols: int,
     img_id: int | None,
+    model_device_map: str,
+    model_torch_dtype: str,
     scanpath_threshold_percentile: float,
     scanpath_min_hotspot_area: int,
     scanpath_topk_hotspots: int,
@@ -464,7 +580,11 @@ def run_single_prompt(
     vis_dir.mkdir(parents=True, exist_ok=True)
     grids_dir.mkdir(parents=True, exist_ok=True)
 
-    messages = build_messages(image_path, prompt_entry["prompt"])
+    messages = build_messages(
+        image_path,
+        prompt_entry["prompt"],
+        prompt_entry.get("system_prompt") or None,
+    )
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
     inputs = processor(
@@ -477,13 +597,20 @@ def run_single_prompt(
 
     # Misuro il tempo per avere un confronto semplice anche lato costo computazionale.
     start = time.time()
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=max_new_tokens,
-        use_cache=True,
-        output_hidden_states=True,
-        return_dict_in_generate=True,
-    )
+    generation_kwargs = {
+        "max_new_tokens": max_new_tokens,
+        "use_cache": True,
+        "output_hidden_states": True,
+        "return_dict_in_generate": True,
+    }
+    if prompt_entry.get("do_sample"):
+        generation_kwargs["do_sample"] = True
+        if prompt_entry.get("temperature") is not None:
+            generation_kwargs["temperature"] = float(prompt_entry["temperature"])
+        if prompt_entry.get("top_p") is not None:
+            generation_kwargs["top_p"] = float(prompt_entry["top_p"])
+
+    outputs = model.generate(**inputs, **generation_kwargs)
     elapsed_seconds = round(time.time() - start, 2)
 
     generated_ids = outputs.sequences
@@ -537,17 +664,16 @@ def run_single_prompt(
             token_piece = token_pieces[step_idx] if step_idx < len(token_pieces) else token_label
             step_label = step_artifact_stem(token_label, step_idx)
             save_path = image_dir / f"{step_label}.jpg"
-            raw_map = TAM(
+            raw_map = run_tam_for_generated_step(
                 generated_ids[0].cpu().tolist(),
                 vision_shape,
                 logits,
                 special_ids,
                 image_inputs,
                 processor,
-                str(save_path),
+                save_path,
                 step_idx,
                 raw_map_records,
-                False,
             )
             raw_map_path, raw_map_shape, resized_raw_map_shape = save_raw_tam_map(
                 raw_map,
@@ -590,17 +716,16 @@ def run_single_prompt(
                 token_label = token_labels[step_idx] if step_idx < len(token_labels) else "tok"
                 step_label = step_artifact_stem(token_label, step_idx)
                 save_path = layer_dir / f"{step_label}.jpg"
-                raw_map = TAM(
+                raw_map = run_tam_for_generated_step(
                     generated_ids[0].cpu().tolist(),
                     vision_shape,
                     logits,
                     special_ids,
                     image_inputs,
                     processor,
-                    str(save_path),
+                    save_path,
                     step_idx,
                     img_scores_list,
-                    False,
                 )
                 layer_step_paths[layer_idx][step_idx] = save_path
                 raw_map_path, raw_map_shape, resized_raw_map_shape = save_raw_tam_map(
@@ -670,10 +795,21 @@ def run_single_prompt(
         "prompt_id": prompt_entry["id"],
         "prompt_label": prompt_entry["label"],
         "prompt_text": prompt_entry["prompt"],
+        "system_prompt": prompt_entry.get("system_prompt", ""),
+        "generation_options": {
+            "do_sample": bool(prompt_entry.get("do_sample")),
+            "temperature": prompt_entry.get("temperature"),
+            "top_p": prompt_entry.get("top_p"),
+        },
         "image_path": image_path,
         "image_stem": stem,
         "img_id": img_id,
         "model_name": MODEL_NAME,
+        "model_device_map": model_device_map,
+        "model_torch_dtype": model_torch_dtype,
+        "model_first_device": first_model_device(model),
+        "cuda_available": torch.cuda.is_available(),
+        "cuda_device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "",
         "max_new_tokens": max_new_tokens,
         "all_layers": all_layers,
         "layers": run_layers,
@@ -737,6 +873,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--grid-cols", type=int, default=8)
     parser.add_argument("--layers", help="Comma-separated layer list, e.g. 0,4,8,12.")
     parser.add_argument(
+        "--device",
+        choices=["cpu", "cuda", "auto"],
+        default="cpu",
+        help="Device map used when loading Qwen2-VL. Use cuda/auto for GPU tests.",
+    )
+    parser.add_argument(
+        "--torch-dtype",
+        choices=["auto", "float16", "float32", "bfloat16"],
+        default="auto",
+        help="Torch dtype used when loading the model.",
+    )
+    parser.add_argument(
         "--scanpath-threshold-percentile",
         type=float,
         default=SCANPATH_THRESHOLD_PERCENTILE,
@@ -780,6 +928,8 @@ def main() -> None:
     image_label = resolve_image_label(img_id, image_path, args.image_label)
     all_layers = not args.final_layer_only
     requested_layers = parse_layers(args.layers)
+    model_device_map = resolve_device_map(args.device)
+    model_torch_dtype = resolve_torch_dtype(args.torch_dtype)
 
     # Ogni sweep finisce in una cartella dedicata.
     # Cosi' posso lanciare piu' esperimenti sulla stessa immagine senza sovrascrivere nulla.
@@ -792,6 +942,10 @@ def main() -> None:
     print(f"run root: {run_root}")
     print(f"prompts: {len(prompts)}")
     print(f"all layers: {all_layers}")
+    print(f"device map: {model_device_map}")
+    print(f"torch dtype: {args.torch_dtype}")
+    if torch.cuda.is_available():
+        print(f"cuda device: {torch.cuda.get_device_name(0)}")
     if requested_layers is not None:
         print(f"layers: {requested_layers}")
     print(f"scanpath threshold percentile: {args.scanpath_threshold_percentile}")
@@ -804,10 +958,11 @@ def main() -> None:
     print(f"Loading model: {MODEL_NAME}")
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         MODEL_NAME,
-        torch_dtype="auto",
-        device_map="cpu",
+        torch_dtype=model_torch_dtype,
+        device_map=model_device_map,
     )
     processor = AutoProcessor.from_pretrained(MODEL_NAME)
+    print(f"model first device: {first_model_device(model)}")
 
     norm = _get_final_norm(model)
     if norm is None:
@@ -832,6 +987,8 @@ def main() -> None:
                 max_new_tokens=args.max_new_tokens,
                 grid_cols=args.grid_cols,
                 img_id=img_id,
+                model_device_map=model_device_map,
+                model_torch_dtype=args.torch_dtype,
                 scanpath_threshold_percentile=args.scanpath_threshold_percentile,
                 scanpath_min_hotspot_area=args.scanpath_min_hotspot_area,
                 scanpath_topk_hotspots=args.scanpath_topk_hotspots,
@@ -850,6 +1007,11 @@ def main() -> None:
         "image_dir_name": image_dir_name,
         "img_id": img_id,
         "model_name": MODEL_NAME,
+        "model_device_map": model_device_map,
+        "model_torch_dtype": args.torch_dtype,
+        "model_first_device": first_model_device(model),
+        "cuda_available": torch.cuda.is_available(),
+        "cuda_device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "",
         "max_new_tokens": args.max_new_tokens,
         "all_layers": all_layers,
         "layers": requested_layers,

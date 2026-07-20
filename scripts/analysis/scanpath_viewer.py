@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.common.prompt_word_utils import (  # noqa: E402
+from prompt_word_utils import (  # noqa: E402
     build_word_groups,
     estimate_heatmap_rgb,
     load_saliency_map,

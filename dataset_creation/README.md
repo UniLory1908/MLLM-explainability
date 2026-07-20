@@ -14,4 +14,4 @@ Scopo della cartella:
 Nota:
 
 - il notebook e' stato spostato dentro `dataset_creation/`;
-- alcuni output gia' salvati nelle celle mostrano ancora il vecchio path locale (`C:\\Users\\loryc\\IdeaProjects\\Test COCO`), ma servono solo come traccia storica dell'esecuzione originale.
+- alcuni output gia' salvati nelle celle possono mostrare vecchi path locali, ma servono solo come traccia storica dell'esecuzione originale.

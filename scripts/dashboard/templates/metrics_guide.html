@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Metric Guide{% endblock %}
+{% block content %}
+<section class="case-header">
+  <div>
+    <h1>Metric guide</h1>
+    <p class="note">Definitions and interpretation notes for dashboard metrics.</p>
+  </div>
+  <a class="button" href="{{ url_for('index') }}">Back to cases</a>
+</section>
+
+{% for group in groups %}
+<section class="panel">
+  <h2>{{ group.title }}</h2>
+  <table class="case-table">
+    <thead><tr><th>Metric</th><th>Description</th><th>High values</th><th>Low values</th><th>Why used</th><th>Source</th><th>Limitations</th></tr></thead>
+    <tbody>
+      {% for metric in group.rows %}
+      <tr>
+        <td><strong>{{ metric.key }}</strong><br><span>{{ metric.label }}</span></td>
+        <td>{{ metric.short or "n/a" }}</td>
+        <td>{{ metric.high or "n/a" }}</td>
+        <td>{{ metric.low or "n/a" }}</td>
+        <td>{{ metric.why or "n/a" }}</td>
+        <td>{{ metric.source or "n/a" }}</td>
+        <td>{{ metric.limits or "n/a" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+
+<section class="panel">
+  <h2>I. Condition comparison / aggregate metrics</h2>
+  <p class="note">{{ metric_group_descriptions.condition_aggregate }}</p>
+  <ul>
+    <li>Aggregates: mean, median, IQR, min, max.</li>
+    <li>Deltas: path_length_delta, max_jump_delta, tortuosity_delta, entropy/top5/spread/centroid-shift deltas where available.</li>
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>J. Optional ground-truth metrics</h2>
+  <ul>{% for item in optional_gt %}<li>{{ item }}</li>{% endfor %}</ul>
+  <p class="note">Optional: not required by core dashboard workflow.</p>
+</section>
+
+<section class="panel">
+  <h2>K. Not-now / future causal metrics</h2>
+  <ul>{% for item in future_metrics %}<li>{{ item }}</li>{% endfor %}</ul>
+  <p class="note">Not part of current dashboard implementation.</p>
+</section>
+{% endblock %}

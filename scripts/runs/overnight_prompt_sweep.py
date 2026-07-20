@@ -47,6 +47,10 @@ def parse_args() -> argparse.Namespace:
         default=96,
         help="Generation cap used for every prompt.",
     )
+    parser.add_argument("--device", choices=["cpu", "cuda", "auto"], default="cpu")
+    parser.add_argument("--torch-dtype", choices=["auto", "float16", "float32", "bfloat16"], default="auto")
+    parser.add_argument("--all-layers", action="store_true", help="Save TAM heatmaps for all layers.")
+    parser.add_argument("--layers", help="Optional comma-separated layer list passed to the prompt sweep runner.")
     return parser.parse_args()
 
 
@@ -55,7 +59,6 @@ def load_json(path: Path) -> dict:
 
 
 def run_command(command: list[str], log_path: Path) -> float:
-    # Esegue un comando e salva stdout e stderr in un log dedicato.
     log_path.parent.mkdir(parents=True, exist_ok=True)
     start = time.time()
     with log_path.open("w", encoding="utf-8") as handle:
@@ -90,6 +93,10 @@ def main() -> None:
         "prompts_file": str(Path(args.prompts_file).resolve()),
         "prompt_set_name": prompt_payload.get("run_name", ""),
         "max_new_tokens": args.max_new_tokens,
+        "device": args.device,
+        "torch_dtype": args.torch_dtype,
+        "all_layers": args.all_layers,
+        "layers": args.layers,
         "image_count": len(selected_images),
         "images": selected_images,
         "runs": [],
@@ -103,24 +110,30 @@ def main() -> None:
         image_log_dir = batch_root / f"{index:02d}_{image_stem}_{slugify(image_label)}"
         image_log_dir.mkdir(parents=True, exist_ok=True)
 
-        run_seconds = run_command(
-            [
-                sys.executable,
-                script_path("runs", "run_qwen_tam_prompt_sweep.py"),
-                "--img-id",
-                str(img_id),
-                "--prompts-file",
-                args.prompts_file,
-                "--run-name",
-                run_label,
-                "--image-label",
-                image_label,
-                "--final-layer-only",
-                "--max-new-tokens",
-                str(args.max_new_tokens),
-            ],
-            image_log_dir / "01_runner.log",
-        )
+        runner_cmd = [
+            sys.executable,
+            script_path("runs", "run_qwen_tam_prompt_sweep.py"),
+            "--img-id",
+            str(img_id),
+            "--prompts-file",
+            args.prompts_file,
+            "--run-name",
+            run_label,
+            "--image-label",
+            image_label,
+            "--max-new-tokens",
+            str(args.max_new_tokens),
+            "--device",
+            args.device,
+            "--torch-dtype",
+            args.torch_dtype,
+        ]
+        if args.layers:
+            runner_cmd.extend(["--layers", args.layers])
+        if not args.all_layers:
+            runner_cmd.append("--final-layer-only")
+
+        run_seconds = run_command(runner_cmd, image_log_dir / "01_runner.log")
 
         run_dir = PROJECT_ROOT / "outputs" / "prompt_sensitivity" / image_dir_name(image_stem, image_label) / slugify(run_label)
         analysis_steps = [
@@ -172,6 +185,10 @@ def main() -> None:
         f"- run_name: `{args.run_name}`",
         f"- prompts_file: `{Path(args.prompts_file).name}`",
         f"- max_new_tokens: `{args.max_new_tokens}`",
+        f"- device: `{args.device}`",
+        f"- torch_dtype: `{args.torch_dtype}`",
+        f"- all_layers: `{args.all_layers}`",
+        f"- layers: `{args.layers or ''}`",
         f"- image_count: `{len(selected_images)}`",
         f"- total_seconds: `{total_seconds}`",
         f"- total_minutes: `{pipeline_summary['total_minutes']}`",

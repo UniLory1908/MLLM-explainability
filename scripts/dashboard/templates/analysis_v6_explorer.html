@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}V6 Data Explorer{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>V6 Data Explorer</h1>
+    <p>Quick filters over <code>case_features_800_v2.csv</code>. No raw maps are loaded.</p>
+  </div>
+  <div class="case-study-links">
+    <a class="button" href="{{ url_for('analysis_v6_view') }}">Back to V6 atlas</a>
+    <a class="button" href="{{ url_for('analysis_v6_explorer', preset=explorer.preset, metric=explorer.metric, prompt=explorer.prompt, bbox=explorer.bbox, sort=explorer.sort, limit=explorer.limit, format='csv') }}">Export CSV</a>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+{% if explorer.warnings %}
+<section class="warning">
+  <ul>{% for warning in explorer.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>Preset queries</h2>
+  <div class="case-study-links">
+  {% for key, preset in explorer.presets.items() %}
+    <a class="button {% if explorer.preset == key %}active{% endif %}" href="{{ url_for('analysis_v6_explorer', preset=key) }}">{{ preset.label }}</a>
+  {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Filter and sort</h2>
+  <form method="get" class="analysis-explorer-form">
+    <label>Preset
+      <select name="preset">
+        <option value="">custom</option>
+        {% for key, preset in explorer.presets.items() %}
+          <option value="{{ key }}" {% if explorer.preset == key %}selected{% endif %}>{{ preset.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Metric
+      <select name="metric">
+        {% for key, label in explorer.metric_options %}
+          <option value="{{ key }}" {% if explorer.metric == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Prompt
+      <select name="prompt">
+        <option value="">all prompts</option>
+        {% for prompt in explorer.prompts %}
+          <option value="{{ prompt }}" {% if explorer.prompt == prompt %}selected{% endif %}>{{ prompt }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>BBox filter
+      <select name="bbox">
+        <option value="all" {% if explorer.bbox == "all" %}selected{% endif %}>all</option>
+        <option value="strict" {% if explorer.bbox == "strict" %}selected{% endif %}>bbox strict</option>
+        <option value="broad" {% if explorer.bbox == "broad" %}selected{% endif %}>bbox broad</option>
+        <option value="none" {% if explorer.bbox == "none" %}selected{% endif %}>no broad bbox</option>
+      </select>
+    </label>
+    <label>Sort
+      <select name="sort">
+        <option value="desc" {% if explorer.sort == "desc" %}selected{% endif %}>highest first</option>
+        <option value="asc" {% if explorer.sort == "asc" %}selected{% endif %}>lowest first</option>
+      </select>
+    </label>
+    <label>Top N
+      <input name="limit" value="{{ explorer.limit }}" type="number" min="10" max="500" step="10">
+    </label>
+    <button type="submit">Apply</button>
+  </form>
+  <p class="note">Showing {{ explorer.rows|length }} of {{ explorer.total }} matching cases, sorted by <code>{{ explorer.metric }}</code>.</p>
+</section>
+
+<section class="panel">
+  <h2>Matching cases</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table query-table">
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Prompt</th>
+          <th>{{ explorer.metric }}</th>
+          <th>visual</th>
+          <th>centroid</th>
+          <th>entropy</th>
+          <th>top-5</th>
+          <th>area</th>
+          <th>regions .90</th>
+          <th>bbox</th>
+          <th>links</th>
+          <th>response preview</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in explorer.rows %}
+        <tr>
+          <td>{{ row.image_id }}</td>
+          <td><code>{{ row.prompt_label }}</code></td>
+          <td>{{ explorer.fmt(row.get(explorer.metric)) }}</td>
+          <td>{{ explorer.fmt(row.visual_change) }}</td>
+          <td>{{ explorer.fmt(row.mean_centroid_shift_vs_baseline) }}</td>
+          <td>{{ explorer.fmt(row.entropy_norm_mean) }}</td>
+          <td>{{ explorer.fmt(row.top_5_mass_mean) }}</td>
+          <td>{{ explorer.fmt(row.effective_area_norm_mean) }}</td>
+          <td>{{ explorer.fmt(row.region_count_thr090) }}</td>
+          <td>strict {{ row.bbox_strict }} / broad {{ row.bbox_broad }}</td>
+          <td>
+            {% if row.dashboard_case_path %}<a href="{{ row.dashboard_case_path }}">case</a>{% endif %}
+            {% if row.dashboard_compare_path %}<a href="{{ row.dashboard_compare_path }}">compare</a>{% endif %}
+          </td>
+          <td>{{ row.response_preview }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

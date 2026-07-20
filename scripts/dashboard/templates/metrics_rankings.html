@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Metric Rankings{% endblock %}
+{% block content %}
+<section class="case-header">
+  <h1>Metric rankings</h1>
+  <a class="button" href="{{ url_for('index') }}">Back to cases</a>
+</section>
+<section class="rankings-grid">
+  <div class="panel">
+    <h2>Most diffuse cases</h2>
+    <table class="case-table">
+      <thead><tr><th>Case</th><th>Score</th></tr></thead>
+      <tbody>{% for row in rankings.diffuse_cases %}<tr><td><a href="{{ url_for('case_view', case_id=row.case_id) }}">{{ row.image_label }} / {{ row.condition_label }}</a></td><td>{{ fmt_metric(row.score) }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Most multipeak cases</h2>
+    <table class="case-table">
+      <thead><tr><th>Case</th><th>Score</th></tr></thead>
+      <tbody>{% for row in rankings.multipeak_cases %}<tr><td><a href="{{ url_for('case_view', case_id=row.case_id) }}">{{ row.image_label }} / {{ row.condition_label }}</a></td><td>{{ fmt_metric(row.score) }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Most unstable layer-wise scanpaths</h2>
+    <table class="case-table">
+      <thead><tr><th>Case</th><th>Score</th></tr></thead>
+      <tbody>{% for row in rankings.unstable_layer_scanpaths %}<tr><td><a href="{{ url_for('case_view', case_id=row.case_id) }}">{{ row.image_label }} / {{ row.condition_label }}</a></td><td>{{ fmt_metric(row.score) }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Largest word-wise jumps</h2>
+    <table class="case-table">
+      <thead><tr><th>Case</th><th>Score</th></tr></thead>
+      <tbody>{% for row in rankings.largest_word_jumps %}<tr><td><a href="{{ url_for('case_view', case_id=row.case_id) }}">{{ row.image_label }} / {{ row.condition_label }}</a></td><td>{{ fmt_metric(row.score) }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

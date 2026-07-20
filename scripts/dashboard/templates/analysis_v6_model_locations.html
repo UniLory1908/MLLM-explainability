@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}V6 Model Locations{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Model-Described Locations</h1>
+    <p>Parsed coordinate outputs from generated responses, with links to visual overlays on the original image.</p>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+<section class="panel">
+  <h2>Coverage</h2>
+  <p class="note">{{ locations.total }} cases contain parseable model coordinates. Coordinates are response text artifacts, not proof of correct localization.</p>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Prompt</th><th>parseable cases</th></tr></thead>
+      <tbody>
+      {% for row in locations.prompt_rows %}
+        <tr><td><code>{{ row.prompt_label }}</code></td><td>{{ row.parseable_count }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Coordinate Case Index</h2>
+  <p class="info-note">Open the overlay to compare model-generated coordinates against the image and available COCO boxes. Green boxes are label-matched COCO GT when a simple match is possible; cyan boxes are reference GT when no label match is found.</p>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Prompt</th>
+          <th>count</th>
+          <th>first parsed location</th>
+          <th>links</th>
+          <th>response</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in locations.rows %}
+        <tr>
+          <td>{{ row.image_id }}</td>
+          <td><code>{{ row.prompt_label }}</code></td>
+          <td>{{ row.location_count }}</td>
+          <td><code>{{ row.first_kind }}</code> {{ row.first_label }} <span class="muted">{{ row.first_raw }}</span></td>
+          <td>
+            <a href="{{ row.dashboard_case_path }}">case</a>
+            <a href="{{ row.dashboard_compare_path }}">compare</a>
+            <a class="modal-link" href="{{ row.overlay_path }}" data-caption="Model location overlay for {{ row.case_id }}">overlay</a>
+          </td>
+          <td>{{ row.response_preview }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

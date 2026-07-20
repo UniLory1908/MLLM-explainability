@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Matrix - {{ case.condition_label }}{% endblock %}
+{% block content %}
+<section class="case-header">
+  <h1>Word x Layer Heatmap Matrix</h1>
+  <div class="actions">
+    <a class="button" href="{{ url_for('case_view', case_id=case.case_id) }}">Case</a>
+    <a class="button" href="{{ url_for('matrix_view', case_id=case.case_id, norm='local') }}">Local norm</a>
+    <a class="button" href="{{ url_for('matrix_view', case_id=case.case_id, norm='global') }}">Global norm</a>
+  </div>
+</section>
+<section class="toolbar matrix-toolbar">
+  <span>Zoom</span>
+  <a class="button {% if zoom == 'fit' %}active{% endif %}" href="{{ url_for('matrix_view', case_id=case.case_id, norm=normalization, zoom='fit') }}">Fit all</a>
+  <a class="button {% if zoom == 'overview' %}active{% endif %}" href="{{ url_for('matrix_view', case_id=case.case_id, norm=normalization, zoom='overview') }}">Overview</a>
+  <a class="button {% if zoom == 'compact' %}active{% endif %}" href="{{ url_for('matrix_view', case_id=case.case_id, norm=normalization, zoom='compact') }}">Compact</a>
+  <a class="button {% if zoom == 'normal' %}active{% endif %}" href="{{ url_for('matrix_view', case_id=case.case_id, norm=normalization, zoom='normal') }}">Normal</a>
+  <a class="button {% if zoom == 'large' %}active{% endif %}" href="{{ url_for('matrix_view', case_id=case.case_id, norm=normalization, zoom='large') }}">Large</a>
+</section>
+<p class="note">Rows are generated words. Columns are layers. Overview/Fit modes prioritize seeing all layer columns at once. Click a cell for high-resolution overlay.</p>
+{% if zoom == "overview" %}
+<div class="matrix-overview full-bleed" style="--matrix-layer-count: {{ layers|length }};">
+  <div class="overview-corner">word / layer</div>
+  {% for layer in layers %}<div class="overview-layer">L{{ layer }}</div>{% endfor %}
+  {% for word in words %}
+    <div class="overview-word" title="{{ word.word_index }} {{ word.word_label }}">{{ word.word_index }} {{ word.word_label }}</div>
+    {% for layer in layers %}
+      {% set metric = cell_metrics.get(word.word_index ~ ":" ~ layer) %}
+      <a href="{{ url_for('render_map_route', case_id=case.case_id, word_index=word.word_index, layer_index=layer, mode='gray', norm=normalization) }}"
+         class="overview-cell modal-link"
+         data-caption="Word {{ word.word_index }} {{ word.word_label }} / Layer L{{ layer }} / {{ normalization }} normalization{% if metric %} / entropy={{ fmt_metric(metric.entropy_norm) }}, top5={{ fmt_metric(metric.top_5_mass) }}, eff_area_norm={{ fmt_metric(metric.effective_area_norm) }}, centroid=({{ fmt_metric(metric.global_centroid_x_norm) }},{{ fmt_metric(metric.global_centroid_y_norm) }}), spread={{ fmt_metric(metric.spread_trace) }}, peaks={{ metric.peak_count or 0 }}, secondary_ratio={{ fmt_metric(metric.secondary_primary_ratio) }}{% else %} / metrics not precomputed{% endif %}">
+        <img src="{{ url_for('render_cell_route', case_id=case.case_id, word_index=word.word_index, layer_index=layer, norm=normalization, size=cell_size) }}" loading="lazy">
+      </a>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="matrix-wrap full-bleed zoom-{{ zoom }}" style="--matrix-cell-size: {{ cell_size }}px; --matrix-layer-count: {{ layers|length }};">
+  <table class="matrix">
+    <thead>
+      <tr><th>word</th>{% for layer in layers %}<th>L{{ layer }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for word in words %}
+      <tr>
+        <th><a href="{{ url_for('word_view', case_id=case.case_id, word_index=word.word_index) }}">{{ word.word_index }} {{ word.word_label }}</a></th>
+        {% for layer in layers %}
+          {% set metric = cell_metrics.get(word.word_index ~ ":" ~ layer) %}
+          <td>
+            <a href="{{ url_for('render_map_route', case_id=case.case_id, word_index=word.word_index, layer_index=layer, mode='gray', norm=normalization) }}"
+               class="modal-link"
+               data-caption="Word {{ word.word_index }} {{ word.word_label }} / Layer L{{ layer }} / {{ normalization }} normalization{% if metric %} / entropy={{ fmt_metric(metric.entropy_norm) }}, top5={{ fmt_metric(metric.top_5_mass) }}, eff_area_norm={{ fmt_metric(metric.effective_area_norm) }}, centroid=({{ fmt_metric(metric.global_centroid_x_norm) }},{{ fmt_metric(metric.global_centroid_y_norm) }}), spread={{ fmt_metric(metric.spread_trace) }}, peaks={{ metric.peak_count or 0 }}, secondary_ratio={{ fmt_metric(metric.secondary_primary_ratio) }}{% else %} / metrics not precomputed{% endif %}">
+              <img src="{{ url_for('render_cell_route', case_id=case.case_id, word_index=word.word_index, layer_index=layer, norm=normalization, size=cell_size) }}" loading="lazy">
+            </a>
+          </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

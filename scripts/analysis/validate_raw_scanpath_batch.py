@@ -67,7 +67,6 @@ def main() -> None:
         "runs": rows,
     }
 
-    PROMPT_ROOT.mkdir(parents=True, exist_ok=True)
     out_json = PROMPT_ROOT / "raw_scanpath_v2f_validation.json"
     out_txt = PROMPT_ROOT / "raw_scanpath_v2f_validation.txt"
     out_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")

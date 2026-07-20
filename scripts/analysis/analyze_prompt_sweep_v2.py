@@ -13,11 +13,12 @@ from PIL import Image
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.common.prompt_word_utils import build_word_lookup, combined_word_heatmap  # noqa: E402
+from prompt_word_utils import build_word_lookup, combined_word_heatmap  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    # Prima misura di stabilita' costruita sugli artifact gia' salvati.
+    # Questa v2 lavora sulla prima misura vera tra heatmap.
+    # Rimane pero' vincolata agli artifact gia' salvati dal runner.
     parser = argparse.ArgumentParser(
         description="Compute baseline-vs-prompt heatmap stability on final-layer-only prompt sweep runs.",
     )
@@ -34,7 +35,8 @@ def load_json(path: Path) -> dict:
 
 
 def normalize_word(word: str) -> str:
-    # Normalizzazione minima usata solo come annotazione.
+    # La normalizzazione resta minimale.
+    # Mi serve solo per annotare se due parole sembrano uguali, non per decidere il match principale.
     word = word.strip()
     if not word:
         return ""
@@ -44,7 +46,8 @@ def normalize_word(word: str) -> str:
 
 
 def cosine_similarity(arr_a: np.ndarray, arr_b: np.ndarray) -> float:
-    # Score principale di stabilita' tra heatmap.
+    # Uso la cosine come score principale di stabilita':
+    # semplice da spiegare e sufficientemente robusta per una prima analisi.
     a = arr_a.astype(np.float32).reshape(-1)
     b = arr_b.astype(np.float32).reshape(-1)
     denom = float(np.linalg.norm(a) * np.linalg.norm(b))
@@ -54,7 +57,8 @@ def cosine_similarity(arr_a: np.ndarray, arr_b: np.ndarray) -> float:
 
 
 def normalized_l1_similarity(arr_a: np.ndarray, arr_b: np.ndarray) -> float:
-    # Misura ausiliaria, utile come controllo rispetto alla cosine.
+    # Tengo anche una seconda misura molto intuitiva.
+    # Non guida il ranking principale, ma aiuta a leggere i casi strani.
     a = arr_a.astype(np.float32)
     b = arr_b.astype(np.float32)
     mean_abs = float(np.mean(np.abs(a - b)))
@@ -71,12 +75,14 @@ def resize_rgb(path: str | Path, size: tuple[int, int]) -> np.ndarray:
 
 
 def build_word_lookup_cached(metadata: dict) -> dict[int, dict]:
-    # La v2 lavora a livello di parola ricostruita dai pezzi del tokenizer.
+    # La v2 lavora ora a livello di parola ricostruita dai token del tokenizer.
+    # Ogni word record conserva i pezzi originali e le heatmap dei token che la compongono.
     return build_word_lookup(metadata)
 
 
 def validate_final_layer_only(manifest: dict, records: list[dict]) -> None:
-    # La v2 supporta solo run final-layer-only.
+    # In questa fase voglio evitare ambiguita' tra layer.
+    # Se il run non e' final-layer-only preferisco fermarmi subito.
     if manifest.get("all_layers"):
         raise ValueError("analysis_v2 currently supports final-layer-only runs.")
     for record in records:
@@ -85,7 +91,7 @@ def validate_final_layer_only(manifest: dict, records: list[dict]) -> None:
 
 
 def load_records(run_dir: Path) -> tuple[dict, list[dict]]:
-    # Carica il run intero; i confronti restano baseline vs singolo prompt.
+    # Carico il run intero, ma il confronto vero resta sempre baseline vs singolo prompt.
     manifest = load_json(run_dir / "run_manifest.json")
     records = []
     for prompt_run in manifest["prompt_runs"]:
@@ -107,7 +113,8 @@ def load_records(run_dir: Path) -> tuple[dict, list[dict]]:
 
 
 def compare_prompt_pair(baseline: dict, current: dict) -> tuple[list[dict], dict]:
-    # Confronto per parola ricostruita con allineamento posizionale.
+    # La scelta metodologica qui e' semplice:
+    # confronto per parola ricostruita e poi misuro quanto le mappe restano simili.
     baseline_steps = baseline["word_lookup"]
     current_steps = current["word_lookup"]
     max_shared_steps = min(len(baseline_steps), len(current_steps))
@@ -121,7 +128,8 @@ def compare_prompt_pair(baseline: dict, current: dict) -> tuple[list[dict], dict
             continue
         path_a = [Path(path) for path in word_a.get("source_heatmap_paths", []) if str(path)]
         path_b = [Path(path) for path in word_b.get("source_heatmap_paths", []) if str(path)]
-        # Le parole senza artifact visivi validi vengono escluse e conteggiate.
+        # Alcune parole risultano nei metadata ma non hanno gli jpg effettivi su disco.
+        # In quel caso li escludo e li conto esplicitamente.
         if not path_a or not path_b or any(not path.exists() for path in path_a) or any(not path.exists() for path in path_b):
             missing_artifact_steps += 1
             continue
@@ -139,7 +147,8 @@ def compare_prompt_pair(baseline: dict, current: dict) -> tuple[list[dict], dict
         norm_a = normalize_word(word_label_a)
         norm_b = normalize_word(word_label_b)
 
-        # La cosine e' lo score principale; la L1 normalizzata resta una misura ausiliaria.
+        # Tengo la cosine come score principale di stability
+        # e la L1 normalizzata come controllo ausiliario.
         cosine = cosine_similarity(heatmap_a, heatmap_b)
         l1_similarity = normalized_l1_similarity(heatmap_a, heatmap_b)
 
@@ -211,7 +220,8 @@ def write_json(payload: dict, path: Path) -> None:
 
 
 def write_markdown(manifest: dict, aggregate_rows: list[dict], step_rows: list[dict], path: Path) -> None:
-    # Report sintetico su copertura e stabilita' per prompt.
+    # Il report deve far capire subito:
+    # quanta copertura ho davvero e quali prompt si allontanano di piu' dal baseline.
     comparable = [row for row in aggregate_rows if row["aggregate_heatmap_stability_score"] is not None]
     stable_sorted = sorted(comparable, key=lambda row: row["aggregate_heatmap_stability_score"], reverse=True)
     total_excluded = sum(
@@ -278,7 +288,8 @@ def write_markdown(manifest: dict, aggregate_rows: list[dict], step_rows: list[d
 
 
 def main() -> None:
-    # Analisi offline del primo livello di stabilita' tra heatmap.
+    # Questa v2 e' il primo strato comparativo vero sulle mappe.
+    # Non cambia i run: legge solo cio' che e' gia' stato salvato.
     args = parse_args()
     run_dir = Path(args.run_dir).resolve()
     manifest, records = load_records(run_dir)

@@ -1,0 +1,85 @@
+{
+  "run_name": "prompt_sensitivity_v3_wordlevel",
+  "description": "Updated prompt list for word-level TAM/scanpath comparison. Removes the bathroom-specific bias prompt, keeps one misleading prompt, removes redundant stress prompts, and adds one verified ObjDetection prompt used by the colleague.",
+  "notes": {
+    "scope": "Use this list for the new word-level comparative analysis.",
+    "removed_from_v2": "strong_bias_prior_stress was removed because it is too specific to bathroom scenes. contradictory_false_presupposition and lexical_ablation_visible_object were removed to keep the comparison lighter and less redundant.",
+    "colleague_prompt_source": "Verified in MLLM-explainability/ObjDetection/objectdetection.py.",
+    "template_note": "The colleague prompt contains {obj_main}; it must be filled with the target object for the selected image before running."
+  },
+  "prompts": [
+    {
+      "id": "baseline_neutral",
+      "label": "baseline_neutral",
+      "category": "baseline",
+      "block": "core",
+      "source": "ours",
+      "prompt": "Describe the image."
+    },
+    {
+      "id": "image_grounded_visible_only",
+      "label": "image_grounded_visible_only",
+      "category": "image_grounded",
+      "block": "core",
+      "source": "ours",
+      "prompt": "Describe the image using only directly visible details in one sentence."
+    },
+    {
+      "id": "ambiguous_open",
+      "label": "ambiguous_open",
+      "category": "ambiguous",
+      "block": "core",
+      "source": "ours",
+      "prompt": "What is happening in the image?"
+    },
+    {
+      "id": "misleading_wrong_subject",
+      "label": "misleading_wrong_subject",
+      "category": "misleading",
+      "block": "core",
+      "source": "ours",
+      "prompt": "Describe the dog in the image."
+    },
+    {
+      "id": "extra_knowledge_context",
+      "label": "extra_knowledge_context",
+      "category": "extra_knowledge",
+      "block": "core",
+      "source": "ours",
+      "prompt": "Describe the image and the likely function of the main visible object."
+    },
+    {
+      "id": "reasoning_controlled_brief",
+      "label": "reasoning_controlled_brief",
+      "category": "reasoning",
+      "block": "core",
+      "source": "ours",
+      "prompt": "Identify the main visible object and briefly explain why it is the most relevant."
+    },
+    {
+      "id": "order_disruption_stress",
+      "label": "order_disruption_stress",
+      "category": "micro_perturbation_order_disruption",
+      "block": "stress",
+      "source": "ours",
+      "prompt": "Describe only visible details in image."
+    },
+    {
+      "id": "colleague_obj_detection_hard",
+      "label": "colleague_obj_detection_hard",
+      "category": "object_detection",
+      "block": "colleague_reference",
+      "source": "colleague_obj_detection",
+      "requires_obj_main": true,
+      "prompt": "Is there a {obj_main}?"
+    }
+  ],
+  "verified_but_not_included": [
+    {
+      "id": "colleague_obj_detection_cot",
+      "source_file": "MLLM-explainability/ObjDetection/objectdetectionCOT.py",
+      "reason": "Not included in the main list because the current request asks for one colleague prompt.",
+      "prompt": "Is there a {obj_main} in this image? Let's think step by step before answering."
+    }
+  ]
+}

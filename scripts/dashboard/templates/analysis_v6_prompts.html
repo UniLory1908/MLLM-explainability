@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}V6 Prompt Fingerprints{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Prompt Fingerprints</h1>
+    <p>Prompt fingerprints are metric signatures, not proof of reasoning quality.</p>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+{% if prompts.warnings %}<section class="warning"><ul>{% for warning in prompts.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>{% endif %}
+
+<section class="analysis-prompt-card-grid">
+{% for row in prompts.fingerprint_rows %}
+  <article class="visual-card analysis-prompt-card">
+    <h2>{{ row.prompt_label }}</h2>
+    <p><strong>{{ row.qualitative_label }}</strong></p>
+    <p>{{ row.interpretation }}</p>
+    <dl>
+      <dt>visual shift</dt><dd>{{ prompts.fmt(row.visual_change_mean) }} rank {{ row.visual_shift_rank }}</dd>
+      <dt>concentration</dt><dd>{{ prompts.fmt(row.concentration_score) }} rank {{ row.concentration_rank }}</dd>
+      <dt>diffusion</dt><dd>{{ prompts.fmt(row.diffusion_score) }} rank {{ row.diffusion_rank }}</dd>
+      <dt>spatial shift</dt><dd>rank {{ row.spatial_shift_rank }}</dd>
+      <dt>bbox strict</dt><dd>{{ prompts.rate(row, "bbox_strict_rate") }}</dd>
+      <dt>weak grounding</dt><dd>{{ prompts.fmt(row.weak_grounding_candidate_score_mean) }}</dd>
+    </dl>
+    <p class="note">{{ row.separability_confusion_note }}</p>
+  </article>
+{% endfor %}
+</section>
+
+<section class="panel">
+  <h2>Prompt behavior plots</h2>
+  <div class="analysis-plot-grid-two">
+  {% for plot in prompts.prompt_plots %}
+    <article class="visual-card analysis-plot-card">
+      <h3>{{ plot.title }}</h3>
+      <a href="{{ url_for('analysis_v6_plot', filename=plot.filename) }}"><img class="analysis-plot" src="{{ url_for('analysis_v6_plot', filename=plot.filename) }}" alt="{{ plot.title }}"></a>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Nonbaseline prompt separability</h2>
+  <p class="info-note">Prompt conditions are separable above chance in TAM metric space. This does not imply better reasoning or grounding.</p>
+  <table class="case-table analysis-table">
+    <thead><tr><th>Variant</th><th>classes</th><th>chance</th><th>balanced accuracy</th><th>macro-F1</th><th>easiest</th><th>hardest</th></tr></thead>
+    <tbody>
+    {% for row in prompts.sep_nb_rows %}
+      <tr><td>{{ row.variant }}</td><td>{{ row.n_classes }}</td><td>{{ prompts.fmt(row.chance_balanced_accuracy) }}</td><td>{{ prompts.fmt(row.balanced_accuracy) }}</td><td>{{ prompts.fmt(row.macro_f1) }}</td><td>{{ row.easiest_prompt }} {{ prompts.fmt(row.easiest_prompt_recall) }}</td><td>{{ row.hardest_prompt }} {{ prompts.fmt(row.hardest_prompt_recall) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Prompt fingerprint table</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Prompt</th><th>Label</th><th>Visual</th><th>Concentration rank</th><th>Diffusion rank</th><th>Spatial rank</th><th>Fragmentation rank</th><th>Scanpath rank</th><th>BBox rate</th></tr></thead>
+      <tbody>
+      {% for row in prompts.fingerprint_rows %}
+        <tr><td><code>{{ row.prompt_label }}</code></td><td>{{ row.qualitative_label }}</td><td>{{ prompts.fmt(row.visual_change_mean) }}</td><td>{{ row.concentration_rank }}</td><td>{{ row.diffusion_rank }}</td><td>{{ row.spatial_shift_rank }}</td><td>{{ row.fragmentation_rank }}</td><td>{{ row.scanpath_instability_rank }}</td><td>{{ prompts.rate(row, "bbox_strict_rate") }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

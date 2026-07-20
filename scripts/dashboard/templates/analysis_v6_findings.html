@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}V6 Findings{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>V6 Findings: What did we learn?</h1>
+    <p>This page turns v6 tables and plots into claim-level evidence. Each answer is based on TAM-derived metric summaries and should be interpreted as attribution-behavior evidence, not causal faithfulness.</p>
+  </div>
+</section>
+{% include "_analysis_v6_nav.html" %}
+
+{% if findings.warnings %}
+<section class="warning"><ul>{% for warning in findings.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>
+{% endif %}
+
+<section class="analysis-finding-grid">
+{% for row in findings.qa_rows %}
+  <article class="visual-card analysis-finding-card confidence-{{ row.confidence }}">
+    <div class="case-header compact">
+      <h2>{{ row.question_id }}. {{ row.question }}</h2>
+      <span class="badge">{{ row.confidence }}</span>
+    </div>
+    <p><strong>Answer:</strong> {{ row.short_answer }}</p>
+    <p><strong>Key numbers:</strong> {{ row.key_numbers }}</p>
+    <p><strong>Evidence:</strong> {{ row.evidence_metrics }}</p>
+    <p><strong>Plot/table:</strong> <code>{{ row.recommended_plot_or_table }}</code></p>
+    <p class="info-note"><strong>Allowed claim:</strong> {{ row.allowed_claim }}</p>
+    <p class="warning"><strong>Forbidden claim:</strong> {{ row.forbidden_claim }}</p>
+    <p class="note"><strong>Next check:</strong> {{ row.next_check }}</p>
+  </article>
+{% endfor %}
+</section>
+
+<section class="panel">
+  <h2>Claim plots</h2>
+  <div class="analysis-plot-grid-two">
+  {% for plot in findings.plots %}
+    <article class="visual-card analysis-plot-card">
+      <h3>{{ plot.title }}</h3>
+      {% if plot.exists %}
+      <a href="{{ url_for('analysis_v6_plot', filename=plot.filename) }}"><img class="analysis-plot" src="{{ url_for('analysis_v6_plot', filename=plot.filename) }}" alt="{{ plot.title }}"></a>
+      {% endif %}
+      <p class="note">{{ plot.caption }}</p>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Metric families</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <thead><tr><th>Family</th><th>Metrics</th><th>Mean internal |rho|</th><th>Strongest internal correlations</th><th>Interpretation</th></tr></thead>
+      <tbody>
+      {% for row in findings.family_rows %}
+        <tr><td>{{ row.metric_family }}</td><td>{{ row.metrics }}</td><td>{{ findings.fmt(row.mean_within_family_abs_spearman) }}</td><td>{{ row.strongest_internal_correlations }}</td><td>{{ row.interpretation }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Caveats</h2>
+  <ul>
+    <li>TAM scanpaths are attribution-derived, not human eye-tracking.</li>
+    <li>Prompt separability is metric-space separability, not grounding proof.</li>
+    <li>BBox/location-style output is not correct localization.</li>
+    <li>Diagnostic scores are proxy rankings.</li>
+    <li>PCA/clustering are exploratory.</li>
+    <li>No deletion/insertion or COCO GT localization evaluation is included in v6.</li>
+  </ul>
+</section>
+{% endblock %}

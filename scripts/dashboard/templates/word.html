@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Word {{ word.word_label }}{% endblock %}
+{% block content %}
+<section class="case-header">
+  <h1>{{ case.image_label }} / word {{ word.word_index }}: {{ word.word_label }}</h1>
+  <div class="actions">
+    <a class="button" href="{{ url_for('case_view', case_id=case.case_id) }}">Case</a>
+    <a class="button" href="{{ url_for('metrics_guide') }}">Metric guide</a>
+  </div>
+</section>
+<section class="panel">
+  <h2>Word summary</h2>
+  <table class="metric-table">
+    <tr><th>Word label</th><td>{{ word.word_label }}</td></tr>
+    <tr><th>Word index</th><td>{{ word.word_index }}</td></tr>
+    <tr><th>Source step indices</th><td>{{ word.source_step_indices_json }}</td></tr>
+    <tr><th>Layer count</th><td>{{ layers|length }}</td></tr>
+  </table>
+</section>
+<section class="split">
+  <div>
+    <h2>Layer-wise scanpath for selected word</h2>
+    {% if metrics_count == 0 %}
+      <p class="warning">Metrics not precomputed for this word yet. Layer-wise scanpath is unavailable until precompute runs.</p>
+    {% endif %}
+    <img class="wide-image modal-image" src="{{ url_for('render_scanpath_route', mode='layer', case_id=case.case_id, word=word.word_index) }}" data-caption="Layer-wise scanpath for selected word {{ word.word_index }} {{ word.word_label }}">
+  </div>
+  <div>
+    <h2>Layer-wise scanpath metrics</h2>
+    <p class="note">{{ metric_group_descriptions.layer_scanpath }}</p>
+    {% if scanpath %}
+      {% for group_name, rows in scanpath_groups.items() %}
+      <details {% if loop.first %}open{% endif %}>
+        <summary>{{ group_name|title }}</summary>
+        <table class="metric-table">
+          {% for row in rows %}
+          {% set info = metric_info(row.key) %}
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td>{{ fmt_metric(row.value) }}</td></tr>
+          {% endfor %}
+        </table>
+      </details>
+      {% endfor %}
+    {% endif %}
+  </div>
+</section>
+<section>
+  <h2>Per-layer map metrics</h2>
+  {% if metrics_count == 0 %}
+    <p class="warning">Metrics not precomputed for this word yet. The raw map links still render from source `.npy` files.</p>
+  {% endif %}
+  <table class="case-table">
+    <thead><tr><th>Layer</th><th>Energy mean</th><th>Max value</th><th>Entropy</th><th>Top5 mass</th><th>Effective area norm</th><th>Centroid x/y norm</th><th>Spread</th><th>Peaks</th><th>Secondary ratio</th><th></th></tr></thead>
+    <tbody>
+      {% for layer in layers %}
+      <tr>
+        <td>L{{ layer.layer_index }}</td>
+        <td>{{ fmt_metric(layer.energy_mean) }}</td>
+        <td>{{ fmt_metric(layer.max_value) }}</td>
+        <td>{{ fmt_metric(layer.entropy_norm) }}</td>
+        <td>{{ fmt_metric(layer.top_5_mass) }}</td>
+        <td>{{ fmt_metric(layer.effective_area_norm) }}</td>
+        <td>{{ fmt_metric(layer.global_centroid_x_norm) }}, {{ fmt_metric(layer.global_centroid_y_norm) }}</td>
+        <td>{{ fmt_metric(layer.spread_trace) }}</td>
+        <td>{{ layer.peak_count or 0 }}</td>
+        <td>{{ fmt_metric(layer.secondary_primary_ratio) }}</td>
+        <td><a class="modal-link" href="{{ url_for('render_map_route', case_id=case.case_id, word_index=word.word_index, layer_index=layer.layer_index, mode='overlay') }}" data-caption="Word {{ word.word_index }} {{ word.word_label }} / Layer L{{ layer.layer_index }}">open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

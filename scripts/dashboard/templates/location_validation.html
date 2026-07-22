@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}COCO Coordinate Validation{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Supplemental COCO validation of generated coordinates</h1>
+    <p>This view evaluates parseable coordinate outputs against COCO bounding boxes and segmentation masks.</p>
+    <p class="note">It validates explicit response coordinates, not TAM causal faithfulness.</p>
+  </div>
+  {% if presentation %}
+    <a class="button" href="{{ url_for('analysis_location_validation_case', case_id=presentation.case_id) }}">Open presentation example</a>
+  {% endif %}
+</section>
+
+<section class="coverage-grid analysis-kpis">
+  <div><strong>102</strong><br><span>parseable coordinate outputs</span></div>
+  <div><strong>50</strong><br><span>target strong</span></div>
+  <div><strong>12</strong><br><span>valid other object</span></div>
+  <div><strong>5</strong><br><span>background or wrong</span></div>
+  <div><strong>35</strong><br><span>ambiguous</span></div>
+  <div><strong>52</strong><br><span>securely mapped labels</span></div>
+  <div><strong>50/52</strong><br><span>strong among mapped</span></div>
+  <div><strong>72/102</strong><br><span>center inside any COCO object</span></div>
+  <div><strong>yes</strong><br><span>mask decoding available</span></div>
+</section>
+
+{% if presentation %}
+<section class="panel">
+  <h2>Presentation Example 376284</h2>
+  <p><code>a car(153,105),(503,390)</code> -> <span class="status-badge {{ badge_class(presentation.review_status) }}">{{ presentation.review_status }}</span></p>
+  <p>target IoU {{ fmt(presentation.target_iou, 6) }}; model-box precision {{ fmt(presentation.target_model_box_precision, 6) }}; target coverage {{ fmt(presentation.target_coverage, 6) }}; center inside target bbox {{ presentation.model_box_center_inside_target_bbox }}; center inside target mask {{ presentation.model_box_center_inside_target_mask }}.</p>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>Review Queues</h2>
+  <div class="anchor-nav">
+    <a href="{{ url_for('analysis_location_validation', status='target_strong') }}">Strong matches</a>
+    <a href="{{ url_for('analysis_location_validation', status='valid_other_object') }}">Other valid objects</a>
+    <a href="{{ url_for('analysis_location_validation', status='background_or_wrong') }}">Wrong/background</a>
+    <a href="{{ url_for('analysis_location_validation', status='ambiguous') }}">Ambiguous/manual review</a>
+  </div>
+</section>
+
+<section class="analysis-plot-grid-two">
+  <article class="visual-card">
+    <h2>Status Distribution</h2>
+    {% for status, count in charts.status.items() %}
+      <div class="bar-row"><span>{{ status }}</span><div><b style="width: {{ count * 2 }}%"></b></div><em>{{ count }}</em></div>
+    {% endfor %}
+  </article>
+  <article class="visual-card">
+    <h2>Target IoU Distribution</h2>
+    {% for label, count in charts.iou_bins %}
+      <div class="bar-row"><span>{{ label }}</span><div><b style="width: {{ count * 4 }}%"></b></div><em>{{ count }}</em></div>
+    {% endfor %}
+  </article>
+  <article class="visual-card">
+    <h2>Status by Prompt</h2>
+    <table class="case-table analysis-table">
+      <thead><tr><th>Prompt</th><th>Status counts</th></tr></thead>
+      <tbody>{% for prompt, counts in charts.prompt_status.items() %}<tr><td><code>{{ prompt }}</code></td><td>{% for status, count in counts.items() %}<span class="badge">{{ status }}: {{ count }}</span>{% endfor %}</td></tr>{% endfor %}</tbody>
+    </table>
+  </article>
+  <article class="visual-card">
+    <h2>Cases by Intended Category</h2>
+    {% for category, count in charts.category.items() %}
+      <div class="bar-row"><span>{{ category }}</span><div><b style="width: {{ count * 8 }}%"></b></div><em>{{ count }}</em></div>
+    {% endfor %}
+  </article>
+</section>
+
+<section class="panel">
+  <h2>Filters</h2>
+  <form class="analysis-explorer-form" method="get">
+    <label>Status<select name="status"><option value="">all</option>{% for value in filters.statuses %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <label>Prompt<select name="prompt"><option value="">all</option>{% for value in filters.prompts %}<option value="{{ value }}" {% if filters.prompt == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <label>Category<select name="category"><option value="">all</option>{% for value in filters.categories %}<option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <label>Mapping<select name="mapping"><option value="">all</option>{% for value in filters.mappings %}<option value="{{ value }}" {% if filters.mapping == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <label>Clipped<select name="clipped"><option value="">all</option><option value="1" {% if filters.clipped == '1' %}selected{% endif %}>yes</option><option value="0" {% if filters.clipped == '0' %}selected{% endif %}>no</option></select></label>
+    <label>Degenerate<select name="degenerate"><option value="">all</option><option value="1" {% if filters.degenerate == '1' %}selected{% endif %}>yes</option><option value="0" {% if filters.degenerate == '0' %}selected{% endif %}>no</option></select></label>
+    <label>Manual review<select name="manual"><option value="">all</option><option value="1" {% if filters.manual == '1' %}selected{% endif %}>yes</option><option value="0" {% if filters.manual == '0' %}selected{% endif %}>no</option></select></label>
+    <label>Min target IoU<input name="min_target_iou" value="{{ filters.min_target_iou }}"></label>
+    <label>Min any IoU<input name="min_any_iou" value="{{ filters.min_any_iou }}"></label>
+    <label>Sort<select name="sort">{% for value in ['review_status','image_id','prompt_label','target_iou','best_any_iou','target_model_box_precision'] %}<option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+    <label>Direction<select name="dir"><option value="asc" {% if filters.dir == 'asc' %}selected{% endif %}>asc</option><option value="desc" {% if filters.dir == 'desc' %}selected{% endif %}>desc</option></select></label>
+    <button type="submit">Apply</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Cases {{ filters.shown }}/102</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table location-table">
+      <thead><tr><th>Case</th><th>Image</th><th>Prompt</th><th>Response</th><th>Parsed</th><th>Target</th><th>Status</th><th>Target IoU</th><th>Precision</th><th>Coverage</th><th>Best any</th><th>Any IoU</th><th>Center target</th><th>Center any</th><th>Clip</th><th>Detail</th></tr></thead>
+      <tbody>
+      {% for row in filters.rows %}
+        <tr>
+          <td><code>{{ row.case_id }}</code></td>
+          <td>{{ row.image_id }}</td>
+          <td><code>{{ row.prompt_label }}</code></td>
+          <td>{{ compact(row.response_text, 120) }}</td>
+          <td>{{ row.parsed_label }}</td>
+          <td>{{ row.target_coco_category or 'unmatched' }}</td>
+          <td><span class="status-badge {{ badge_class(row.review_status) }}">{{ row.review_status }}</span></td>
+          <td>{{ fmt(row.target_iou) }}</td>
+          <td>{{ fmt(row.target_model_box_precision) }}</td>
+          <td>{{ fmt(row.target_coverage) }}</td>
+          <td>{{ row.best_any_category }}</td>
+          <td>{{ fmt(row.best_any_iou) }}</td>
+          <td>{{ row.model_box_center_inside_target_bbox }}</td>
+          <td>{{ row.model_box_center_inside_any_coco_bbox }}</td>
+          <td>{{ row.clipping_flag }}</td>
+          <td><a href="{{ url_for('analysis_location_validation_case', case_id=row.case_id) }}">open</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="legend">
+  <h2>Interpretation</h2>
+  <p><strong>Parseable</strong>: the output can be converted into a point or rectangle. <strong>Target strong</strong>: strong quantitative evidence for the intended COCO object. <strong>Valid other object</strong>: another annotated object is clearly hit. <strong>Ambiguous</strong>: label mapping, clipping, multiple instances or evidence conflicts prevent a confident decision. <strong>Background or wrong</strong>: no meaningful overlap with target or any annotated object.</p>
+  <p>IoU can penalize a small generated box inside a large object, so model-box precision, target coverage, center-inside and mask overlap are reported too. This validates generated coordinate output, not TAM causal faithfulness.</p>
+</section>
+{% endblock %}

@@ -17,6 +17,15 @@
       <a class="button" href="{{ url_for('analysis_v6_findings') }}">Findings</a>
       <a class="button" href="{{ url_for('analysis_v6_explorer') }}">Explorer</a>
       <a class="button" href="{{ url_for('analysis_v6_model_locations') }}">Model locations</a>
+      <a class="button" href="{{ url_for('analysis_location_validation') }}">COCO validation</a>
+    </div>
+  </article>
+  <article class="visual-card analysis-nav-card">
+    <h2>COCO Coordinate Validation</h2>
+    <p>Supplemental review of the 102 parseable model-generated coordinate outputs against COCO bounding boxes and segmentation masks.</p>
+    <p class="note">This validates explicit response coordinates, not TAM causal faithfulness.</p>
+    <div class="case-study-links">
+      <a class="button" href="{{ url_for('analysis_location_validation') }}">Open COCO box validation</a>
     </div>
   </article>
 </section>

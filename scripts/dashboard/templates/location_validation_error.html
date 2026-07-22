@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}COCO Validation Unavailable{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>Supplemental COCO validation of generated coordinates</h1>
+    <p class="warning">{{ error }}.</p>
+    <p>The dashboard is available, but this supplemental view needs the local archive configured with <code>LOCATION_VALIDATION_ARCHIVE</code> or placed at the project root as <code>{{ archive_name }}</code>.</p>
+  </div>
+</section>
+{% endblock %}

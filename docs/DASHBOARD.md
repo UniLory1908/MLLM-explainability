@@ -24,6 +24,7 @@ scripts/dashboard/export_statistical_archive.py
 scripts/dashboard/metrics.py
 scripts/dashboard/pairwise.py
 scripts/dashboard/rendering.py
+scripts/dashboard/location_validation.py
 scripts/dashboard/cache.py
 scripts/dashboard/clear_cache.py
 scripts/dashboard/metric_registry.py
@@ -78,6 +79,8 @@ CURRENT routes to know:
 | `/analysis/v6/images` | Image sensitivity and COCO image-structure summaries. |
 | `/analysis/v6/bbox` | BBox/location-style output summaries and discordant cases. |
 | `/analysis/v6/model-locations` | Parseable model-generated coordinates with qualitative image/COCO overlays. |
+| `/analysis/location-validation` | Supplemental COCO validation for the 102 parseable generated coordinate outputs. |
+| `/analysis/location-validation/<case_id>` | Per-case coordinate, COCO annotation, mask and metric inspection. |
 | `/analysis/v6/cases` | Representative, concordant and discordant case gallery. |
 | `/analysis/v6/explorer` | Filterable v6 case-level data explorer. |
 | `/case/<case_id>` | Single case page. |
@@ -98,6 +101,10 @@ data:
 /render/final-animation/<case_id>.gif
 /render/original/<case_id>.jpg
 /render/model-location/<case_id>.jpg
+/render/location-validation/<case_id>/original.jpg
+/render/location-validation/<case_id>/coco.jpg
+/render/location-validation/<case_id>/model.jpg
+/render/location-validation/<case_id>/combined.jpg
 /render/scanpath/<mode>/<case_id>.png
 /render/diff/<case_id_a>/<case_id_b>/<word_index>/<layer_index>.png
 /api/case/<case_id>/words
@@ -130,6 +137,7 @@ High-level inputs by page:
 | `/analysis/v6/images` | `tables/image_sensitivity_ranking.csv`, `dashboard_views/questions/image_structure_*.csv`, image-structure claim plot. |
 | `/analysis/v6/bbox` | `tables/bbox_by_prompt.csv`, `tables/bbox_metric_comparison.csv`, concordant/discordant case CSVs and bbox plots. |
 | `/analysis/v6/model-locations` | Indexed responses parsed with `parse_model_locations()` and optional qualitative COCO annotation overlays. |
+| `/analysis/location-validation` | Local validation archive `LORENZO_LOCATION_VALIDATION_102.zip` or path configured by `LOCATION_VALIDATION_ARCHIVE`. |
 | `/analysis/v6/cases` | `tables/representative_cases.csv`, `concordant_cases.csv`, `discordant_cases.csv`. |
 | `/analysis/v6/explorer` | `case_features_800_v2.csv`. |
 
@@ -147,6 +155,23 @@ recognizes `[x0,y0,x1,y1]`, two nearby pairs `(x0,y0),(x1,y1)` as a bbox and a
 single pair `(x,y)` as a point; ordinary phrases such as `pizza box` are not
 coordinates. COCO boxes are drawn only as qualitative reference overlays, not as
 localization-accuracy metrics.
+
+The `/analysis/location-validation` page is the supplemental quantitative
+coordinate check. It reads the compact archive through Python `zipfile`; the
+archive is local runtime data and is not committed to the public repository.
+Resolution order:
+
+1. `LOCATION_VALIDATION_ARCHIVE`
+2. project-root `LORENZO_LOCATION_VALIDATION_102.zip`
+
+If the archive is unavailable, the dashboard still starts and the validation
+route shows a concise unavailable page. When present, the loader validates 102
+rows, unique case IDs, prompt counts `72 / 28 / 2` and status counts
+`50 / 12 / 5 / 35`. The view compares generated coordinate boxes with COCO
+bounding boxes and polygon masks and reports target matches, valid
+alternative-object matches, ambiguous cases and background/wrong cases. This is
+validation of explicit generated coordinates, not a TAM causal-faithfulness
+benchmark.
 
 ## Index / Precompute Flow
 

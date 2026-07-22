@@ -148,7 +148,7 @@
       <table class="metric-table">
         {% for key in ["energy_sum","energy_mean","max_value","std_value","nonzero_ratio"] %}
           {% set info = metric_info(key) %}
-          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric_context(key, selected_map_metrics[key], selected_map_metrics) }}</td></tr>
         {% endfor %}
       </table>
     </div>
@@ -158,7 +158,7 @@
       <table class="metric-table">
         {% for key in ["entropy_norm","top_5_mass","effective_area_norm","hoyer_sparsity"] %}
           {% set info = metric_info(key) %}
-          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric_context(key, selected_map_metrics[key], selected_map_metrics) }}</td></tr>
         {% endfor %}
       </table>
     </div>
@@ -168,7 +168,7 @@
       <table class="metric-table">
         {% for key in ["global_centroid_x_norm","global_centroid_y_norm","spread_trace","anisotropy"] %}
           {% set info = metric_info(key) %}
-          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric_context(key, selected_map_metrics[key], selected_map_metrics) }}</td></tr>
         {% endfor %}
       </table>
     </div>
@@ -178,7 +178,7 @@
       <table class="metric-table">
         {% for key in ["peak_count","secondary_primary_ratio","primary_region_centroid_x_norm","primary_region_centroid_y_norm","secondary_region_centroid_x_norm","secondary_region_centroid_y_norm"] %}
           {% set info = metric_info(key) %}
-          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric(selected_map_metrics[key]) }}</td></tr>
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-map-metric="{{ key }}">{{ fmt_metric_context(key, selected_map_metrics[key], selected_map_metrics) }}</td></tr>
         {% endfor %}
       </table>
     </div>
@@ -215,7 +215,7 @@
   <table class="metric-table">
     {% for key in ["layer_path_length","layer_mean_step","layer_max_jump","layer_net_displacement","layer_tortuosity","layer_large_jump_count","layer_bbox_area","adjacent_layer_cosine_mean","adjacent_layer_ssim_mean","adjacent_layer_jsd_mean","early_late_centroid_shift","peak_count_mean","secondary_primary_ratio_max","multipeak_layer_ratio"] %}
       {% set info = metric_info(key) %}
-      <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-layer-metric="{{ key }}">{{ fmt_metric(layer_scan_metrics[key]) }}</td></tr>
+      <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td data-layer-metric="{{ key }}">{{ fmt_metric_context(key, layer_scan_metrics[key], layer_scan_metrics) }}</td></tr>
     {% endfor %}
   </table>
   {% else %}

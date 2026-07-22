@@ -206,6 +206,22 @@ dashboard formatting bugs.
 Do not hide or sanitize them. Treat this as a grounding-format /
 bbox-triggered stress condition with a caveat in analysis text.
 
+## Undefined And Not-Applicable Values
+
+Dashboard metric cells distinguish numeric zero from values that are undefined
+or not applicable. Examples:
+
+- zero-mass maps can make entropy, HHI, effective area, centroid, spread and
+  anisotropy undefined;
+- secondary/primary ratio requires at least two valid salient regions;
+- tortuosity requires a valid path and nonzero net displacement;
+- baseline-relative or adjacent-layer metrics require an aligned comparison
+  map;
+- missing metric records are displayed as unavailable, not as numeric zero.
+
+The Metric Guide documents `undefined_when` for the exposed metrics. These
+labels are display semantics only; they do not change stored metric values.
+
 ## V6 Interpretation Concepts
 
 V6 horizontal analysis groups case-level metrics into prompt and case
@@ -260,5 +276,10 @@ descriptive context for exploratory image-structure analysis, not a
 ground-truth localization evaluation of TAM heatmaps.
 
 COCO boxes shown in model-location overlays are qualitative references selected
-by simple label matching when possible. They are not used to compute IoU, mAP,
-pointing-game, mass-in-mask or grounding correctness in the current analysis.
+by simple label matching when possible. The separate
+`/analysis/location-validation` view evaluates the 102 parseable generated
+coordinate outputs against COCO boxes and available segmentation masks. It
+reports target-category matches, valid alternative-object matches, ambiguous
+cases and background/wrong cases. This validates explicit response coordinates;
+it does not validate TAM causal faithfulness or replace perturbative grounding
+metrics.

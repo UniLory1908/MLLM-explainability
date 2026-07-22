@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function fmtMetric(value) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return "n/a";
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return "-- unavailable";
     const n = Number(value);
     const a = Math.abs(n);
     if (a >= 100000) return n.toExponential(2);
@@ -119,12 +119,12 @@ document.addEventListener("DOMContentLoaded", () => {
         body.innerHTML = rows.slice(0, 120).map((region) => (
           `<tr>
             <td>${fmtMetric(region.threshold)}</td>
-            <td>${region.rank ?? "n/a"}</td>
+            <td>${region.rank ?? "-- unavailable"}</td>
             <td>${fmtMetric(region.mass)}</td>
             <td>${fmtMetric(region.ratio_to_primary)}</td>
             <td>${fmtMetric(region.centroid_x_norm)}, ${fmtMetric(region.centroid_y_norm)}</td>
-            <td>[${fmtMetric(region.bbox_x0_norm)}, ${fmtMetric(region.bbox_y0_norm)}] → [${fmtMetric(region.bbox_x1_norm)}, ${fmtMetric(region.bbox_y1_norm)}]</td>
-            <td>${region.area ?? "n/a"}</td>
+            <td>[${fmtMetric(region.bbox_x0_norm)}, ${fmtMetric(region.bbox_y0_norm)}] -> [${fmtMetric(region.bbox_x1_norm)}, ${fmtMetric(region.bbox_y1_norm)}]</td>
+            <td>${region.area ?? "-- unavailable"}</td>
             <td>${fmtMetric(region.peak_value)}</td>
           </tr>`
         )).join("");

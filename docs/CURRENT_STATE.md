@@ -83,6 +83,12 @@ Parseable coordinates are distributed as: `order_disruption_stress` 72,
 prompt labels have 0. The report may use the alias `object_detection_hard`, but
 the data label remains `colleague_obj_detection_hard`.
 
+The supplemental `/analysis/location-validation` dashboard view evaluates
+those 102 parseable coordinate outputs against available COCO bounding boxes
+and segmentation masks. Current status counts are 50 target-strong, 12 valid
+other-object, 5 background/wrong and 35 ambiguous. This validates explicit
+generated coordinates, not TAM causal faithfulness.
+
 ## Current Priority
 
 CURRENT: the dashboard now has implemented scripts for derived metric
@@ -153,6 +159,7 @@ Dashboard analysis routes:
 - `/analysis/v6/images`
 - `/analysis/v6/bbox`
 - `/analysis/v6/model-locations`
+- `/analysis/location-validation`
 - `/analysis/v6/cases`
 - `/analysis/v6/explorer`
 
@@ -189,8 +196,9 @@ Historical run inventory is archive-only unless referenced by a current doc:
   duplicated.
 - Do not hide coordinate/bounding-box style output from
   `order_disruption_stress`; it is real model output.
-- Treat model-location overlays as qualitative inspection only. They do not
-  establish localization accuracy, grounding or a COCO IoU/mAP benchmark.
+- Treat model-location overlays as qualitative inspection only. Use
+  `/analysis/location-validation` for the supplemental quantitative check of
+  explicit generated coordinate boxes against COCO annotations.
 - Core dashboard metrics are offline descriptive/proxy metrics, not causal
   faithfulness measurements.
 - Derived metric/export scripts operate from existing metadata and DB metrics;

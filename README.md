@@ -100,6 +100,14 @@ Route principali:
 - `/analysis/v6`: viste v6 dataset-level;
 - `/analysis/v6/findings`, `/prompts`, `/images`, `/bbox`,
   `/model-locations`, `/cases`, `/explorer`: viste di sintesi e ispezione.
+- `/analysis/location-validation`: validazione supplementare dei 102 output
+  spaziali parseable contro bounding box e maschere COCO.
+
+Public dashboard:
+
+```text
+https://lorenzocastellano.net
+```
 
 Il dashboard richiede output locali pesanti non versionati:
 
@@ -152,9 +160,12 @@ bbox/location-style dai 102 casi con coordinate effettivamente parseable
 (`order_disruption_stress`: 72, `colleague_obj_detection_hard`: 28,
 `misleading_wrong_subject`: 2). Il report usa l'alias leggibile
 `object_detection_hard` per la label dati `colleague_obj_detection_hard`.
-Gli overlay con annotazioni COCO sono solo supporto qualitativo.
+La vista `/analysis/location-validation` valuta quei 102 output spaziali
+parseable contro bounding box e maschere COCO. Riporta target matches, valid
+alternative-object matches, casi ambigui e casi background/wrong. Questa
+validazione riguarda le coordinate esplicite generate nella risposta, non la
+causal faithfulness delle TAM.
 
-Sviluppi futuri ragionevoli includono validazione con annotazioni spaziali
-COCO, metriche perturbative piu' forti, negative queries piu' bilanciate,
-analisi su piu' modelli e controlli qualitativi mirati sui casi concordanti e
-discordanti.
+Sviluppi futuri ragionevoli includono metriche perturbative piu' forti,
+negative queries piu' bilanciate, analisi su piu' modelli e controlli
+qualitativi mirati sui casi concordanti e discordanti.

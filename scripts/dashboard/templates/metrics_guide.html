@@ -13,17 +13,18 @@
 <section class="panel">
   <h2>{{ group.title }}</h2>
   <table class="case-table">
-    <thead><tr><th>Metric</th><th>Description</th><th>High values</th><th>Low values</th><th>Why used</th><th>Source</th><th>Limitations</th></tr></thead>
+    <thead><tr><th>Metric</th><th>Description</th><th>High values</th><th>Low values</th><th>Why used</th><th>Source</th><th>Undefined when</th><th>Limitations</th></tr></thead>
     <tbody>
       {% for metric in group.rows %}
       <tr>
         <td><strong>{{ metric.key }}</strong><br><span>{{ metric.label }}</span></td>
-        <td>{{ metric.short or "n/a" }}</td>
-        <td>{{ metric.high or "n/a" }}</td>
-        <td>{{ metric.low or "n/a" }}</td>
-        <td>{{ metric.why or "n/a" }}</td>
-        <td>{{ metric.source or "n/a" }}</td>
-        <td>{{ metric.limits or "n/a" }}</td>
+        <td>{{ metric.short }}</td>
+        <td>{{ metric.high }}</td>
+        <td>{{ metric.low }}</td>
+        <td>{{ metric.why }}</td>
+        <td>{{ metric.source }}</td>
+        <td>{{ metric.undefined_when }}</td>
+        <td>{{ metric.limits }}</td>
       </tr>
       {% endfor %}
     </tbody>

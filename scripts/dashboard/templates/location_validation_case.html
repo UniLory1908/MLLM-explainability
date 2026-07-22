@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}COCO Validation {{ row.image_id }}{% endblock %}
+{% block content %}
+<section class="case-header analysis-hero">
+  <div>
+    <h1>COCO Coordinate Validation: {{ row.image_id }}</h1>
+    <p><code>{{ row.case_id }}</code></p>
+    <p><code>{{ row.prompt_label }}</code> | parsed <strong>{{ row.parsed_label }}</strong> -> target <strong>{{ row.target_coco_category or 'unmatched' }}</strong> | <span class="status-badge {{ badge_class(row.review_status) }}">{{ row.review_status }}</span></p>
+    <p class="note">{{ row.status_reason }}</p>
+  </div>
+  <div class="anchor-nav">
+    <a href="{{ url_for('analysis_location_validation') }}">Summary</a>
+    {% if nav.prev %}<a href="{{ url_for('analysis_location_validation_case', case_id=nav.prev) }}">Previous case</a>{% endif %}
+    {% if nav.next %}<a href="{{ url_for('analysis_location_validation_case', case_id=nav.next) }}">Next case</a>{% endif %}
+    {% if nav.next_wrong %}<a href="{{ url_for('analysis_location_validation_case', case_id=nav.next_wrong) }}">Next wrong</a>{% endif %}
+    {% if nav.next_ambiguous %}<a href="{{ url_for('analysis_location_validation_case', case_id=nav.next_ambiguous) }}">Next ambiguous</a>{% endif %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Text</h2>
+  {% if metadata.prompt_text %}<p><strong>Prompt:</strong> {{ metadata.prompt_text }}</p>{% endif %}
+  <p><strong>Response:</strong> {{ row.response_text }}</p>
+</section>
+
+<section class="coverage-grid analysis-kpis">
+  <div><strong>{{ fmt(row.target_iou) }}</strong><br><span>target IoU</span></div>
+  <div><strong>{{ fmt(row.target_model_box_precision) }}</strong><br><span>model precision</span></div>
+  <div><strong>{{ fmt(row.target_coverage) }}</strong><br><span>target coverage</span></div>
+  <div><strong>{{ fmt(row.best_any_iou) }}</strong><br><span>best any IoU</span></div>
+  <div><strong>{{ row.best_any_category or 'n/a' }}</strong><br><span>best any category</span></div>
+  <div><strong>{{ row.model_box_center_inside_target_bbox }}</strong><br><span>center in target bbox</span></div>
+  <div><strong>{{ row.model_box_center_inside_target_mask }}</strong><br><span>center in target mask</span></div>
+  <div><strong>{{ row.model_box_center_inside_any_coco_bbox }}/{{ row.model_box_center_inside_any_object_mask }}</strong><br><span>center in any bbox/mask</span></div>
+  <div><strong>{{ fmt(row.target_mask_model_box_fraction) }}</strong><br><span>target mask in model box</span></div>
+  <div><strong>{{ fmt(row.any_object_mask_model_box_fraction) }}</strong><br><span>any mask in model box</span></div>
+  <div><strong>{{ fmt(row.model_box_area_ratio) }}</strong><br><span>box area ratio</span></div>
+  <div><strong>{{ row.clipping_flag }}/{{ row.degenerate_flag }}</strong><br><span>clipped / degenerate</span></div>
+</section>
+
+<section class="panel">
+  <h2>Visual Controls</h2>
+  <form class="analysis-explorer-form" method="get">
+    <label>Model box<select name="model"><option value="1" {% if request.args.get('model','1') == '1' %}selected{% endif %}>show</option><option value="0" {% if request.args.get('model') == '0' %}selected{% endif %}>hide</option></select></label>
+    <label>COCO boxes<select name="boxes"><option value="1" {% if request.args.get('boxes','1') == '1' %}selected{% endif %}>show</option><option value="0" {% if request.args.get('boxes') == '0' %}selected{% endif %}>hide</option></select></label>
+    <label>Masks<select name="masks"><option value="1" {% if request.args.get('masks','1') == '1' %}selected{% endif %}>show</option><option value="0" {% if request.args.get('masks') == '0' %}selected{% endif %}>hide</option></select></label>
+    <label>Labels<select name="labels"><option value="1" {% if request.args.get('labels','1') == '1' %}selected{% endif %}>show</option><option value="0" {% if request.args.get('labels') == '0' %}selected{% endif %}>hide</option></select></label>
+    <label>Mask opacity<input name="opacity" value="{{ request.args.get('opacity','70') }}"></label>
+    <label>Model coords<select name="unclipped"><option value="0" {% if request.args.get('unclipped','0') == '0' %}selected{% endif %}>clipped</option><option value="1" {% if request.args.get('unclipped') == '1' %}selected{% endif %}>unclipped</option></select></label>
+    <button type="submit">Update</button>
+  </form>
+</section>
+
+<section class="visual-row">
+  {% for panel, title in [('original','Original image'),('coco','COCO annotations only'),('model','Model box only'),('combined','Combined comparison')] %}
+  <article class="visual-card">
+    <h2>{{ title }}</h2>
+    <img class="wide-image modal-image" src="{{ url_for('render_location_validation_panel_route', case_id=row.case_id, panel=panel, model=request.args.get('model','1'), boxes=request.args.get('boxes','1'), masks=request.args.get('masks','1'), labels=request.args.get('labels','1'), opacity=request.args.get('opacity','70'), unclipped=request.args.get('unclipped','0')) }}" data-caption="{{ title }} {{ row.image_id }}">
+  </article>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  <h2>Coordinate Details</h2>
+  <div class="table-scroll">
+    <table class="case-table analysis-table">
+      <tbody>
+        <tr><th>raw coordinate text</th><td><code>{{ row.raw_coordinate_text }}</code></td></tr>
+        <tr><th>original parsed coordinates</th><td><code>{{ row.original_parsed_coordinates_json }}</code></td></tr>
+        <tr><th>scaled unclipped box</th><td><code>{{ row.model_box_scaled_unclipped_xyxy }}</code></td></tr>
+        <tr><th>clipped box</th><td><code>{{ row.model_box_clipped_xyxy }}</code></td></tr>
+        <tr><th>image size</th><td>{{ row.image_width }} x {{ row.image_height }}</td></tr>
+        <tr><th>best target COCO bbox</th><td><code>{{ row.best_target_bbox }}</code></td></tr>
+        <tr><th>best alternative COCO bbox</th><td><code>{{ row.best_any_bbox }}</code></td></tr>
+        <tr><th>dominant mask category</th><td>{{ row.dominant_coco_category_by_mask_coverage }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -29,6 +29,18 @@ from scripts.dashboard.metric_registry import (
     format_metric_value,
     metric_info,
 )
+from scripts.dashboard.location_validation import (
+    LocationValidationError,
+    archive_path as location_validation_archive_path,
+    boolish,
+    compact_text as compact_location_text,
+    load_validation,
+    parse_box,
+    render_validation_panel,
+    safe_float as location_safe_float,
+    sort_cases as sort_location_cases,
+    status_label,
+)
 from scripts.dashboard.pairwise import compute_pair_for_rows
 from scripts.dashboard.rendering import (
     parse_model_locations,
@@ -450,9 +462,173 @@ def v6_nav_items() -> list[dict[str, str]]:
         {"label": "Images", "endpoint": "analysis_v6_images"},
         {"label": "BBox", "endpoint": "analysis_v6_bbox"},
         {"label": "Model locations", "endpoint": "analysis_v6_model_locations"},
+        {"label": "COCO validation", "endpoint": "analysis_location_validation"},
         {"label": "Cases", "endpoint": "analysis_v6_cases"},
         {"label": "Explorer", "endpoint": "analysis_v6_explorer"},
     ]
+
+
+def status_badge_class(status: str) -> str:
+    return "status-" + str(status or "unknown").replace("_", "-")
+
+
+def contextual_metric_value(key: str, value, context=None) -> str:
+    if value is not None:
+        return format_metric_value(value)
+    ctx = context or {}
+    keys = ctx.keys() if hasattr(ctx, "keys") else []
+    zero_mass_keys = {
+        "entropy_norm",
+        "hhi",
+        "effective_area",
+        "effective_area_norm",
+        "global_centroid_x_px",
+        "global_centroid_y_px",
+        "global_centroid_x_norm",
+        "global_centroid_y_norm",
+        "spread_trace",
+        "spread_x",
+        "spread_y",
+        "covariance_xy",
+        "anisotropy",
+    }
+    energy = ctx["energy_sum"] if "energy_sum" in keys else None
+    if key in zero_mass_keys and safe_float(energy) == 0.0:
+        return "— zero-mass map"
+    if key in {"secondary_primary_ratio", "secondary_region_mass", "secondary_region_centroid_x_norm", "secondary_region_centroid_y_norm"}:
+        peak_count = ctx["peak_count"] if "peak_count" in keys else None
+        peak_value = safe_float(peak_count, 0.0)
+        if peak_value is not None and peak_value < 2:
+            return "— requires ≥2 regions"
+    if "tortuosity" in key:
+        net_key = key.replace("tortuosity", "net_displacement")
+        net = ctx[net_key] if net_key in keys else None
+        if safe_float(net) == 0.0:
+            return "— zero net displacement"
+        return "— insufficient path"
+    if key.startswith(("adjacent_", "early_late_")) or key in {"cosine_similarity", "pearson_correlation", "ssim", "jsd", "emd_2d", "l1_distance", "l2_distance"}:
+        return "— comparison unavailable"
+    if "path" in key or "step" in key or "jump" in key or "scanpath" in key:
+        return "— insufficient path"
+    return "— unavailable"
+
+
+def load_location_validation_or_error(project_root: Path) -> tuple[object | None, str | None]:
+    try:
+        return load_validation(project_root), None
+    except LocationValidationError as exc:
+        return None, str(exc)
+
+
+def location_validation_filters(data) -> dict[str, object]:
+    rows = list(data.cases)
+    args = request.args
+    status = args.get("status", "")
+    prompt = args.get("prompt", "")
+    category = args.get("category", "")
+    mapping = args.get("mapping", "")
+    clipped = args.get("clipped", "")
+    degenerate = args.get("degenerate", "")
+    manual = args.get("manual", "")
+    min_target_iou = location_safe_float(args.get("min_target_iou"))
+    min_any_iou = location_safe_float(args.get("min_any_iou"))
+    if status:
+        rows = [row for row in rows if row.get("review_status") == status]
+    if prompt:
+        rows = [row for row in rows if row.get("prompt_label") == prompt]
+    if category:
+        rows = [row for row in rows if row.get("target_coco_category") == category]
+    if mapping:
+        rows = [row for row in rows if row.get("label_mapping_method") == mapping]
+    if clipped:
+        expected = clipped == "1"
+        rows = [row for row in rows if boolish(row.get("clipping_flag")) == expected]
+    if degenerate:
+        expected = degenerate == "1"
+        rows = [row for row in rows if boolish(row.get("degenerate_flag")) == expected]
+    if manual:
+        expected = manual == "1"
+        rows = [row for row in rows if boolish(row.get("needs_manual_review")) == expected]
+    if min_target_iou is not None:
+        rows = [row for row in rows if (location_safe_float(row.get("target_iou"), 0.0) or 0.0) >= min_target_iou]
+    if min_any_iou is not None:
+        rows = [row for row in rows if (location_safe_float(row.get("best_any_iou"), 0.0) or 0.0) >= min_any_iou]
+    sort_key = args.get("sort", "review_status")
+    direction = args.get("dir", "asc")
+    rows = sort_location_cases(rows, sort_key, desc=direction == "desc")
+    return {
+        "rows": rows,
+        "shown": len(rows),
+        "status": status,
+        "prompt": prompt,
+        "category": category,
+        "mapping": mapping,
+        "clipped": clipped,
+        "degenerate": degenerate,
+        "manual": manual,
+        "min_target_iou": args.get("min_target_iou", ""),
+        "min_any_iou": args.get("min_any_iou", ""),
+        "sort": sort_key,
+        "dir": direction,
+        "statuses": sorted(data.status_counts),
+        "prompts": sorted(data.prompt_counts),
+        "categories": sorted({row.get("target_coco_category", "") for row in data.cases if row.get("target_coco_category")}),
+        "mappings": sorted({row.get("label_mapping_method", "") for row in data.cases if row.get("label_mapping_method")}),
+    }
+
+
+def location_validation_chart_data(rows: list[dict[str, str]]) -> dict[str, object]:
+    by_status: dict[str, int] = {}
+    by_prompt_status: dict[str, dict[str, int]] = {}
+    mapped_ious: list[float] = []
+    by_category: dict[str, int] = {}
+    for row in rows:
+        status = row.get("review_status", "")
+        prompt = row.get("prompt_label", "")
+        by_status[status] = by_status.get(status, 0) + 1
+        by_prompt_status.setdefault(prompt, {})[status] = by_prompt_status.setdefault(prompt, {}).get(status, 0) + 1
+        if row.get("target_coco_category"):
+            value = location_safe_float(row.get("target_iou"))
+            if value is not None:
+                mapped_ious.append(value)
+            by_category[row["target_coco_category"]] = by_category.get(row["target_coco_category"], 0) + 1
+    bins = [0, 0, 0, 0]
+    for value in mapped_ious:
+        if value >= 0.75:
+            bins[3] += 1
+        elif value >= 0.50:
+            bins[2] += 1
+        elif value >= 0.10:
+            bins[1] += 1
+        else:
+            bins[0] += 1
+    return {
+        "status": by_status,
+        "prompt_status": by_prompt_status,
+        "iou_bins": [("0-0.10", bins[0]), ("0.10-0.50", bins[1]), ("0.50-0.75", bins[2]), ("0.75-1.00", bins[3])],
+        "category": dict(sorted(by_category.items(), key=lambda item: (-item[1], item[0]))[:16]),
+    }
+
+
+def location_case_nav(data, case_id: str) -> dict[str, str]:
+    def queue(statuses: set[str]) -> list[str]:
+        return [row["case_id"] for row in data.cases if row.get("review_status") in statuses]
+
+    all_ids = [row["case_id"] for row in data.cases]
+    wrong_ids = queue({"background_or_wrong"})
+    ambiguous_ids = queue({"ambiguous"})
+
+    def neighbor(ids: list[str], offset: int) -> str:
+        if case_id not in ids or not ids:
+            return ""
+        return ids[(ids.index(case_id) + offset) % len(ids)]
+
+    return {
+        "prev": neighbor(all_ids, -1),
+        "next": neighbor(all_ids, 1),
+        "next_wrong": neighbor(wrong_ids, 1) if case_id in wrong_ids else (wrong_ids[0] if wrong_ids else ""),
+        "next_ambiguous": neighbor(ambiguous_ids, 1) if case_id in ambiguous_ids else (ambiguous_ids[0] if ambiguous_ids else ""),
+    }
 
 
 def load_questions_context() -> dict[str, object]:
@@ -838,6 +1014,7 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
             "metric_registry": METRIC_REGISTRY,
             "metric_group_descriptions": GROUP_DESCRIPTIONS,
             "fmt_metric": format_metric_value,
+            "fmt_metric_context": contextual_metric_value,
         }
 
     @app.route("/")
@@ -927,6 +1104,56 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
     @app.route("/analysis")
     def analysis_hub():
         return render_template("analysis_hub.html")
+
+    @app.route("/analysis/location-validation")
+    def analysis_location_validation():
+        data, error = load_location_validation_or_error(config.project_root)
+        if error or data is None:
+            return render_template(
+                "location_validation_error.html",
+                error=error,
+                archive_name=location_validation_archive_path(config.project_root).name,
+            ), 503
+        filters = location_validation_filters(data)
+        presentation = next((row for row in data.cases if row.get("image_id") == "376284" and row.get("prompt_label") == "order_disruption_stress"), None)
+        return render_template(
+            "location_validation.html",
+            data=data,
+            filters=filters,
+            charts=location_validation_chart_data(data.cases),
+            presentation=presentation,
+            fmt=fmt_compact,
+            compact=compact_location_text,
+            status_label=status_label,
+            badge_class=status_badge_class,
+        )
+
+    @app.route("/analysis/location-validation/<case_id>")
+    def analysis_location_validation_case(case_id: str):
+        data, error = load_location_validation_or_error(config.project_root)
+        if error or data is None:
+            return render_template(
+                "location_validation_error.html",
+                error=error,
+                archive_name=location_validation_archive_path(config.project_root).name,
+            ), 503
+        row = data.by_case_id.get(case_id)
+        if not row:
+            abort(404)
+        connection = conn()
+        db_case = get_case(connection, case_id)
+        metadata = load_case_metadata(config, db_case) if db_case else {"prompt_text": "", "response_text": ""}
+        return render_template(
+            "location_validation_case.html",
+            row=row,
+            data=data,
+            nav=location_case_nav(data, case_id),
+            metadata=metadata,
+            fmt=fmt_compact,
+            parse_box=parse_box,
+            status_label=status_label,
+            badge_class=status_badge_class,
+        )
 
     @app.route("/analysis/v6/findings")
     def analysis_v6_findings():
@@ -1233,6 +1460,42 @@ def create_app(config: DashboardConfig | None = None) -> Flask:
         except ValueError:
             abort(404)
         return send_file(path)
+
+    @app.route("/render/location-validation/<case_id>/<panel>.jpg")
+    def render_location_validation_panel_route(case_id: str, panel: str):
+        if panel not in {"original", "coco", "model", "combined"}:
+            abort(404)
+        data, error = load_location_validation_or_error(config.project_root)
+        if error or data is None:
+            abort(404)
+        row = data.by_case_id.get(case_id)
+        if not row:
+            abort(404)
+        connection = conn()
+        db_case = get_case(connection, case_id)
+        if not db_case:
+            abort(404)
+        image_path = resolve_project_path(db_case["image_path"], config.project_root)
+        if not image_path.exists():
+            abort(404)
+        image = render_validation_panel(
+            config.project_root,
+            image_path,
+            row,
+            panel,
+            {
+                "model": request.args.get("model", "1"),
+                "boxes": request.args.get("boxes", "1"),
+                "masks": request.args.get("masks", "1"),
+                "labels": request.args.get("labels", "1"),
+                "opacity": request.args.get("opacity", "70"),
+                "unclipped": request.args.get("unclipped", "0"),
+            },
+        )
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=88)
+        output.seek(0)
+        return send_file(output, mimetype="image/jpeg")
 
     @app.route("/render/scanpath/<mode>/<case_id>.png")
     def render_scanpath_route(mode: str, case_id: str):

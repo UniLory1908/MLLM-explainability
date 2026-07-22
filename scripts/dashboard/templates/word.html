@@ -35,7 +35,7 @@
         <table class="metric-table">
           {% for row in rows %}
           {% set info = metric_info(row.key) %}
-          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td>{{ fmt_metric(row.value) }}</td></tr>
+          <tr><th>{{ info.label }} <span class="help-tip" title="{{ info.short }}">?</span></th><td>{{ fmt_metric_context(row.key, row.value, scanpath) }}</td></tr>
           {% endfor %}
         </table>
       </details>
@@ -56,13 +56,13 @@
         <td>L{{ layer.layer_index }}</td>
         <td>{{ fmt_metric(layer.energy_mean) }}</td>
         <td>{{ fmt_metric(layer.max_value) }}</td>
-        <td>{{ fmt_metric(layer.entropy_norm) }}</td>
+        <td>{{ fmt_metric_context("entropy_norm", layer.entropy_norm, layer) }}</td>
         <td>{{ fmt_metric(layer.top_5_mass) }}</td>
-        <td>{{ fmt_metric(layer.effective_area_norm) }}</td>
-        <td>{{ fmt_metric(layer.global_centroid_x_norm) }}, {{ fmt_metric(layer.global_centroid_y_norm) }}</td>
-        <td>{{ fmt_metric(layer.spread_trace) }}</td>
+        <td>{{ fmt_metric_context("effective_area_norm", layer.effective_area_norm, layer) }}</td>
+        <td>{{ fmt_metric_context("global_centroid_x_norm", layer.global_centroid_x_norm, layer) }}, {{ fmt_metric_context("global_centroid_y_norm", layer.global_centroid_y_norm, layer) }}</td>
+        <td>{{ fmt_metric_context("spread_trace", layer.spread_trace, layer) }}</td>
         <td>{{ layer.peak_count or 0 }}</td>
-        <td>{{ fmt_metric(layer.secondary_primary_ratio) }}</td>
+        <td>{{ fmt_metric_context("secondary_primary_ratio", layer.secondary_primary_ratio, layer) }}</td>
         <td><a class="modal-link" href="{{ url_for('render_map_route', case_id=case.case_id, word_index=word.word_index, layer_index=layer.layer_index, mode='overlay') }}" data-caption="Word {{ word.word_index }} {{ word.word_label }} / Layer L{{ layer.layer_index }}">open</a></td>
       </tr>
       {% endfor %}

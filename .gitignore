@@ -21,11 +21,15 @@ outputs/dashboard_cache/
 outputs/statistical_archive/
 outputs/analysis/
 outputs/v3_visualization/
+outputs/playwright/
+outputs/_logs/
 outputs/**/*.sqlite
 outputs/**/*.npy
 outputs/**/*.npz
 outputs/**/*.parquet
 
+LORENZO_LOCATION_VALIDATION_102.zip
+.playwright-cli/
 *.log
 *.tmp
 *.bak

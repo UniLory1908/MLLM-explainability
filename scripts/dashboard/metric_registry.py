@@ -28,6 +28,7 @@ def _m(
     why: str = "",
     source: str = "",
     limits: str = "",
+    undefined_when: str = "",
 ) -> tuple[str, dict[str, str]]:
     return key, {
         "key": key,
@@ -39,6 +40,7 @@ def _m(
         "why": why,
         "source": source,
         "limits": limits,
+        "undefined_when": undefined_when,
     }
 
 
@@ -157,25 +159,98 @@ OPTIONAL_GT = [
 FUTURE_METRICS = ["deletion AUC", "insertion AUC", "ROAR", "infidelity", "sensitivity", "PDM exact"]
 
 
+NO_MONOTONIC = "No monotonic interpretation."
+POSITION_COORDINATE = "Position coordinate."
+SEE_DEFINITION = "See definition."
+UNAVAILABLE = "Unavailable when the required map, region or comparison record is missing."
+
+
+def _default_high_low(key: str, category: str, label: str) -> tuple[str, str]:
+    text = f"{key} {label} {category}".lower()
+    if "centroid" in text and "shift" not in text:
+        return POSITION_COORDINATE, POSITION_COORDINATE
+    if any(term in text for term in ("covariance", "delta", "min value", "max value")):
+        return NO_MONOTONIC, NO_MONOTONIC
+    if "similarity" in text or "cosine" in text or "pearson" in text or "ssim" in text or "iou" in text:
+        return "More similar or more overlapping.", "Less similar or less overlapping."
+    if "jsd" in text or "emd" in text or "distance" in text or "shift" in text:
+        return "Larger difference or spatial movement.", "Smaller difference or spatial movement."
+    if "entropy" in text or "effective area" in text or "spread" in text:
+        return "More diffuse or spatially broad.", "More concentrated or spatially compact."
+    if "top" in text or "hhi" in text or "hoyer" in text or "primary" in text or "secondary" in text or "peak" in text:
+        return "More concentrated, sparse or multi-region structure.", "Less concentrated or less multi-region structure."
+    if "path" in text or "step" in text or "jump" in text or "tortuosity" in text or "revisit" in text or "bbox area" in text:
+        return "More movement or less stable trajectory.", "Less movement or more stable trajectory."
+    return NO_MONOTONIC, NO_MONOTONIC
+
+
+def _default_source(category: str) -> str:
+    if "pairwise" in category.lower() or "hotspot overlap" in category.lower():
+        return "Derived from aligned TAM map pairs."
+    if "scanpath" in category.lower():
+        return "Derived from TAM centroids across layers or generated words."
+    if "hotspot" in category.lower():
+        return "Derived from thresholded connected saliency regions."
+    return "Derived from per-map TAM values."
+
+
+def _default_limits(category: str) -> str:
+    if "scanpath" in category.lower():
+        return "Depends on valid centroid points and should not be interpreted as human eye tracking."
+    if "pairwise" in category.lower() or "hotspot overlap" in category.lower():
+        return "Requires comparable maps and does not by itself prove semantic correctness."
+    if "spatial" in category.lower():
+        return "Undefined for zero-mass maps and sensitive to preprocessing resolution."
+    if "hotspot" in category.lower():
+        return "Depends on thresholding and connected-component extraction."
+    return "Descriptive proxy; not a causal faithfulness metric."
+
+
+def _default_undefined(key: str, category: str) -> str:
+    text = f"{key} {category}".lower()
+    if any(term in text for term in ("entropy", "hhi", "effective_area", "centroid", "spread", "anisotropy")):
+        return "Zero-mass maps or missing metric records."
+    if "secondary" in text:
+        return "Requires at least two valid salient regions."
+    if "tortuosity" in text:
+        return "Requires at least two valid points and nonzero net displacement."
+    if "adjacent" in text or "early_late" in text:
+        return "Requires aligned comparison maps across layers."
+    if "similarity" in text or "distance" in text or "iou" in text or "shift" in text or "delta" in text:
+        return "Requires a valid aligned comparison map."
+    if "scanpath" in category.lower() or "path" in text or "jump" in text:
+        return "Requires enough valid scanpath points."
+    return UNAVAILABLE
+
+
 def metric_info(key: str) -> dict[str, str]:
     if key in METRIC_REGISTRY:
-        return METRIC_REGISTRY[key]
+        row = dict(METRIC_REGISTRY[key])
+        high, low = _default_high_low(key, row["category"], row["label"])
+        row["high"] = row.get("high") or high
+        row["low"] = row.get("low") or low
+        row["why"] = row.get("why") or "Used to summarize TAM intensity, geometry, concentration or stability in a compact dashboard view."
+        row["source"] = row.get("source") or _default_source(row["category"])
+        row["limits"] = row.get("limits") or _default_limits(row["category"])
+        row["undefined_when"] = row.get("undefined_when") or _default_undefined(key, row["category"])
+        return row
     return {
         "key": key,
         "label": key,
         "category": "Other",
         "short": "No description yet.",
-        "high": "",
-        "low": "",
-        "why": "",
-        "source": "",
-        "limits": "",
+        "high": NO_MONOTONIC,
+        "low": NO_MONOTONIC,
+        "why": SEE_DEFINITION,
+        "source": "Metric registry fallback.",
+        "limits": UNAVAILABLE,
+        "undefined_when": UNAVAILABLE,
     }
 
 
 def format_metric_value(value: Any) -> str:
     if value is None:
-        return "n/a"
+        return "— unavailable"
     try:
         number = float(value)
     except (TypeError, ValueError):
